@@ -1,5 +1,6 @@
 <%- include('_head', {titolo: 'Persone'}) %>
 <h1>Persone <a class="btn" href="/persone/nuova" style="font-size:.9rem">+ Nuova</a></h1>
+<p><a class="btn sec" href="<%= xlsUrl %>">⬇ Scarica Excel</a> <span style="color:var(--mut)">con i filtri attuali</span></p>
 <form class="filtri" method="get"><label>Cerca<input name="q" value="<%= filtri.q %>"></label>
 <%- include('_sel', {nome:'stato', label:'Stato', opzioni: ['Attivo','Sospeso','Cessato'].map(t=>({v:t,l:t})), valore: filtri.stato, vuoto:true}) %><button>Filtra</button></form>
 <div class="tw"><table><tr><th>Nome</th><th>Email</th><th>Azienda</th><th>Stato</th><th class="n">Asset</th></tr>

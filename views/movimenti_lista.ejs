@@ -1,5 +1,6 @@
 <%- include('_head', {titolo: 'Movimenti'}) %>
 <h1>Movimenti</h1>
+<p><a class="btn sec" href="<%= xlsUrl %>">⬇ Scarica Excel</a> <span style="color:var(--mut)">con i filtri attuali</span></p>
 <form class="filtri" method="get"><label>Cerca<input name="q" value="<%= filtri.q %>" placeholder="asset o persona"></label>
 <%- include('_sel', {nome:'tipo', label:'Tipo', opzioni: tipi.map(t=>({v:t,l:t})), valore: filtri.tipo, vuoto:true}) %><button>Filtra</button></form>
 <div class="tw"><table><tr><th>Data</th><th>Tipo</th><th>Asset</th><th>Da</th><th>A</th><th>Stato</th><th>Note</th></tr>

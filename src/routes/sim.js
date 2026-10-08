@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const { query, nul } = require('../db');
+const { inviaXlsx, num, vuota } = require('../export');
 
 const CAMPI = ['numero', 'stato', 'persona_id', 'operatore', 'piano', 'costo_mensile', 'azienda_id', 'asset_id', 'giga_telefono', 'saponetta', 'giga_saponetta', 'note'];
 const STATI = ['Attiva', 'Sospesa', 'Cessata', 'Da verificare'];
@@ -22,6 +23,14 @@ router.get('/', async (req, res, next) => {
     const r = await query(`SELECT s.*, pe.nome || ' ' || pe.cognome AS persona, a.codice AS asset_codice, az.nome AS azienda
       FROM sim s LEFT JOIN persona pe ON pe.id = s.persona_id LEFT JOIN asset a ON a.id = s.asset_id LEFT JOIN azienda az ON az.id = s.azienda_id
       ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY s.id`, p);
+    if (vuota(req)) {
+      return inviaXlsx(res, 'sim', [{ nome: 'SIM', righe: r.rows, colonne: [
+        { h: 'ID', v: (x) => x.codice }, { h: 'Numero', v: (x) => x.numero }, { h: 'Stato', v: (x) => x.stato },
+        { h: 'Assegnata a', v: (x) => x.persona }, { h: 'Operatore', v: (x) => x.operatore }, { h: 'Piano', v: (x) => x.piano },
+        { h: 'Costo mensile €', v: (x) => num(x.costo_mensile), t: 'euro' }, { h: 'Azienda', v: (x) => x.azienda },
+        { h: 'Telefono', v: (x) => x.asset_codice }, { h: 'Giga telefono', v: (x) => x.giga_telefono },
+        { h: 'Saponetta', v: (x) => x.saponetta }, { h: 'Giga saponetta', v: (x) => x.giga_saponetta }, { h: 'Note', v: (x) => x.note }] }]);
+    }
     res.render('sim_lista', { righe: r.rows, filtri: { q, stato }, stati: STATI });
   } catch (e) { next(e); }
 });

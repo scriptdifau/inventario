@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const { query, nul } = require('../db');
+const { inviaXlsx, vuota } = require('../export');
 
 router.get('/', async (req, res, next) => {
   try {
@@ -11,9 +12,15 @@ router.get('/', async (req, res, next) => {
       query(`SELECT m.*, a.codice, d.nome || ' ' || d.cognome AS da, t.nome || ' ' || t.cognome AS a
              FROM movimento m JOIN asset a ON a.id = m.asset_id
              LEFT JOIN persona d ON d.id = m.da_persona_id LEFT JOIN persona t ON t.id = m.a_persona_id
-             ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY m.data DESC, m.id DESC LIMIT 500`, p),
+             ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY m.data DESC, m.id DESC ${vuota(req) ? '' : 'LIMIT 500'}`, p),
       query('SELECT DISTINCT tipo FROM movimento ORDER BY tipo'),
     ]);
+    if (vuota(req)) {
+      return inviaXlsx(res, 'movimenti', [{ nome: 'Movimenti', righe: r.rows, colonne: [
+        { h: 'Data', v: (x) => x.data, t: 'data' }, { h: 'Tipo', v: (x) => x.tipo }, { h: 'Asset', v: (x) => x.codice },
+        { h: 'Da', v: (x) => x.da }, { h: 'A', v: (x) => x.a }, { h: 'Stato prima', v: (x) => x.stato_prima },
+        { h: 'Stato dopo', v: (x) => x.stato_dopo }, { h: 'Note', v: (x) => x.note }, { h: 'Automatico', v: (x) => x.automatico }] }]);
+    }
     res.render('movimenti_lista', { righe: r.rows, tipi: tipi.rows.map((x) => x.tipo), filtri: { q, tipo } });
   } catch (e) { next(e); }
 });
