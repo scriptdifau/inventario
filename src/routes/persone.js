@@ -24,7 +24,10 @@ async function elenco(req, res, next) {
     if (q) { p.push(`%${q}%`); w.push(`(p.nome || ' ' || p.cognome ILIKE $${p.length} OR coalesce(p.email,'') ILIKE $${p.length})`); }
     const ord = ordine(req, ORD_PERSONE, 'cognome');
     const r = await query(`SELECT p.*, az.nome AS azienda,
-        (SELECT count(*)::int FROM asset a JOIN stato_asset s ON s.nome = a.stato WHERE a.persona_id = p.id AND NOT s.fuori) AS n_asset
+        (SELECT count(*)::int FROM asset a JOIN stato_asset s ON s.nome = a.stato WHERE a.persona_id = p.id AND NOT s.fuori) AS n_asset,
+        (SELECT json_agg(json_build_object('id', a.id, 'tipologia', a.tipologia, 'marca', a.marca, 'modello', a.modello) ORDER BY a.id)
+           FROM asset a JOIN stato_asset s ON s.nome = a.stato
+          WHERE a.persona_id = p.id AND NOT s.fuori AND a.tipologia IN ('PC','Mac','Server','Telefono')) AS dispositivi
       FROM persona p LEFT JOIN azienda az ON az.id = ${PERSONA_AZIENDA} ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY ${ord.sql}, p.id`, p);
     if (vuota(req)) {
       return inviaXlsx(res, 'persone', [{ nome: 'Persone', righe: r.rows, colonne: [
