@@ -163,6 +163,11 @@ test('ordinamento: predefinito per persona (cognome), colonne ordinabili, valori
   const seq = (lista) => lista.map((i) => cognome.get(i)).filter(Boolean).filter((c, k, a) => k === 0 || a[k - 1] !== c);
   assert.deepStrictEqual(seq(inverso), seq(ordine).reverse());
 
+  // per nome: nome e poi cognome della persona, chi non ha una persona in fondo
+  const perNome = (await query(`SELECT a.id FROM asset a JOIN stato_asset s ON s.nome = a.stato LEFT JOIN persona p ON p.id = a.persona_id
+    WHERE NOT s.fuori ORDER BY lower(p.nome) NULLS LAST, lower(p.cognome) NULLS LAST, a.id`)).rows.map((r) => r.id);
+  assert.deepStrictEqual(await ids('/asset?ord=nome'), perNome);
+
   // importo decrescente e codice
   const imp = await ids('/asset?ord=importo&dir=desc');
   const val = (await query('SELECT id, importo FROM asset')).rows.reduce((m, r) => m.set(r.id, r.importo === null ? null : Number(r.importo)), new Map());

@@ -6,16 +6,17 @@
   <%- include('_sel', {nome:'stato', label:'Stato', opzioni: ['Attivo','Sospeso','Cessato'].map(t=>({v:t,l:t})), valore: filtri.stato, vuoto:true}) %><button>Filtra</button></form>
 <%- include('_ordsel', {sempre: true}) %>
 <% if (!righe.length) { %><div class="card vuoto">Nessuna persona con questi filtri.</div><% } %>
-<div class="persone">
-<% righe.forEach(r => { %>
-  <a class="pers" href="/persone/<%= r.id %>">
-    <div class="testa"><%- include('_avatar', {nome: r.nome + ' ' + r.cognome}) %>
-      <div style="min-width:0"><b><%= r.nome %> <%= r.cognome %></b><div class="mail"><%= r.email || 'nessuna email' %></div></div></div>
-    <div class="piede">
-      <%- include('_badge', {stato: r.stato}) %>
-      <% if (r.azienda) { %><span class="mut" style="font-size:.82rem"><%= r.azienda %></span><% } %>
-      <span class="mut" style="margin-left:auto;font-size:.82rem"><%= r.n_asset %> asset</span>
-    </div>
+<%- include('_testa', {griglia: 'r-pers', colonne: [{k: 'cognome', label: 'Cognome', alt: {k: 'nome', label: 'Nome'}}, {k: "", label: "Computer"}, {k: "", label: "Telefono"}, {k: 'azienda', label: 'Azienda'}, {k: 'stato', label: 'Stato'}]}) %>
+<div class="righe">
+<% righe.forEach(r => { const d = r.dispositivi || [];
+   const pc = d.filter(x => x.tipologia !== 'Telefono'); const tel = d.filter(x => x.tipologia === 'Telefono');
+   const nome = (x) => [x.marca, x.modello].filter(Boolean).join(' ') || x.tipologia; %>
+  <a class="riga r-pers" href="/persone/<%= r.id %>">
+    <span class="chi"><%- include('_avatar', {nome: r.nome + ' ' + r.cognome}) %><span><span class="t"><%= r.nome %> <%= r.cognome %></span><br><span class="s"><%= r.email || 'nessuna email' %></span></span></span>
+    <span class="dev"><% if (pc.length) { pc.forEach(x => { %><span class="dv"><%- include('_icon', {tipo: x.tipologia, dim: 18}) %><span><b><%= x.tipologia %></b> <%= nome(x) %></span></span><% }) } else { %><span class="dv no"><%- include('_icon', {tipo: 'PC', dim: 18}) %><span>nessun computer</span></span><% } %></span>
+    <span class="dev"><% if (tel.length) { tel.forEach(x => { %><span class="dv"><%- include('_icon', {tipo: 'Telefono', dim: 18}) %><span><%= nome(x) %></span></span><% }) } else { %><span class="dv no"><%- include('_icon', {tipo: 'Telefono', dim: 18}) %><span>nessun telefono</span></span><% } %></span>
+    <span class="s"><%= r.azienda %></span>
+    <span><%- include('_badge', {stato: r.stato}) %></span>
   </a>
 <% }) %>
 </div>
