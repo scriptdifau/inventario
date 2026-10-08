@@ -30,3 +30,5 @@ Ripristino: `createdb nuovo && zcat inventario-AAAAMMGG-HHMMSS.sql.gz | psql nuo
 Da verificare sul piano SiteGround (non controllabile da qui): disponibilità di `pg_dump`, dei Cron Jobs e di un processo Node persistente.
 
 Restano i punti 5 (foglio in sola lettura per un mese) e la sincronizzazione Workspace via API.
+
+Per la messa in produzione vedi `DEPLOY.md`.
