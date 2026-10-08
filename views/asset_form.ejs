@@ -16,7 +16,7 @@
   <label>Sistema operativo<input name="sistema_operativo" value="<%= a.sistema_operativo ?? '' %>"></label>
   <label>Serial<input name="serial" value="<%= a.serial ?? '' %>"></label>
   <label>Hostname<input name="hostname" value="<%= a.hostname ?? '' %>"></label>
-  <label>N. cespite<input type="number" name="cespite_numero" value="<%= a.cespite_numero ?? '' %>"></label>
+  <label>N. cespite<input name="cespite_numero" value="<%= a.cespite_numero ?? '' %>" maxlength="30" pattern="[A-Za-z0-9][A-Za-z0-9._/\-]*" title="Lettere, cifre e . _ / - (senza spazi)" placeholder="es. 48 oppure A12" style="text-transform:uppercase"></label>
   <%- include('_sel', {nome:'fornitore_id', label:'Fornitore', opzioni: fornitori.map(x=>({v:x.id,l:x.nome})), valore: a.fornitore_id, vuoto:true}) %>
   <%- include('_sel', {nome:'fattura_id', label:'Fattura (salva prima il fornitore per vederle)', opzioni: fatture.map(f=>({v:f.id,l:f.numero + (f.data ? ' · ' + data(f.data) : '')})), valore: a.fattura_id, vuoto:true}) %>
   <label>Data acquisto<input type="date" name="data_acquisto" value="<%= iso(a.data_acquisto) %>"></label>

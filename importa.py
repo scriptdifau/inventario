@@ -119,8 +119,9 @@ for r in rows('Asset'):
     elif num and not f: warn(f'{cod}: fattura {num} senza fornitore')
     cnum = r.get('N. cespite'); cid = None
     if cnum not in (None, ''):
-        try: cnum = int(cnum)
-        except ValueError: warn(f'{cod}: cespite non numerico {cnum!r}'); cnum = None
+        cnum = str(cnum).strip().upper()
+        if cnum.endswith('.0'): cnum = cnum[:-2]          # numeri letti come decimali dal foglio
+        if not re.fullmatch(r'[A-Z0-9][A-Z0-9._/-]{0,29}', cnum): warn(f'{cod}: cespite non valido {cnum!r}'); cnum = None
         if cnum is not None and az:
             k = (az, cnum)
             if k not in cesp: cesp[k] = len(cesp) + 1
@@ -139,7 +140,7 @@ for r in rows('Asset'):
 
 sql.append('-- fornitori, cespiti, fatture')
 for n, i in forn.items(): sql.append(f"INSERT INTO fornitore (id,nome) VALUES ({i},{q(n)});")
-for (a, n), i in cesp.items(): sql.append(f"INSERT INTO cespite (id,azienda_id,numero) VALUES ({i},{a},{n});")
+for (a, n), i in cesp.items(): sql.append(f"INSERT INTO cespite (id,azienda_id,numero) VALUES ({i},{a},'{n}');")
 fn = {v: k for k, v in forn.items()}
 for (f_id, num, d), i in fatt.items(): sql.append(f"INSERT INTO fattura (id,fornitore_id,numero,data) VALUES ({i},{f_id},{q(num)},{q(d)});")
 

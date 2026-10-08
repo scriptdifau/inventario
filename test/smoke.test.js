@@ -175,7 +175,7 @@ test('ordinamento: predefinito per persona (cognome), colonne ordinabili, valori
   const val = (await query('SELECT id, importo FROM asset')).rows.reduce((m, r) => m.set(r.id, r.importo === null ? null : Number(r.importo)), new Map());
   const noti = imp.map((i) => val.get(i)).filter((v) => v !== null);
   assert.ok(noti.every((v, k) => k === 0 || noti[k - 1] >= v), 'importi in ordine decrescente');
-  const cespId = (await query('SELECT a.id, c.numero FROM asset a LEFT JOIN cespite c ON c.id = a.cespite_id')).rows.reduce((m, r) => m.set(r.id, r.numero), new Map());
+  const cespId = (await query('SELECT a.id, c.numero FROM asset a LEFT JOIN cespite c ON c.id = a.cespite_id')).rows.reduce((m, r) => m.set(r.id, r.numero === null ? null : Number(r.numero)), new Map());
   const cc = (await ids('/asset?ord=cespite&dir=asc')).map((i) => cespId.get(i));
   const conCesp = cc.filter((v) => v !== null); assert.ok(conCesp.length > 20 && conCesp.every((v, k) => k === 0 || conCesp[k - 1] <= v), 'cespiti in ordine crescente');
   assert.ok(cc.indexOf(null) > conCesp.length - 1 || cc.slice(conCesp.length).every((v) => v === null), 'senza cespite in fondo');
@@ -486,5 +486,46 @@ test('Cestino: asset dismessi (stati oltre Estinto) + storico ante 2018, riprist
   } finally {
     await query('DELETE FROM movimento WHERE asset_id = ANY($1)', [[estinto, venduto, rubato]]);
     await query('DELETE FROM asset WHERE id = ANY($1)', [[estinto, venduto, rubato]]);
+  }
+});
+
+test('cespite alfanumerico: salvataggio normalizzato, formato controllato, ordine naturale, ricerca, Excel', { skip }, async () => {
+  const { query } = require('../src/db');
+  const az = (await query('SELECT id FROM azienda ORDER BY id LIMIT 1')).rows[0].id;
+  const creati = [];
+  const crea = async (numero, modello) => {
+    const t = await csrf('/asset/nuovo');
+    const r = await post('/asset/nuovo', { _csrf: t, tipologia: 'PC', stato: 'Disponibile', azienda_id: az, modello, cespite_numero: numero });
+    return r;
+  };
+  try {
+    // "  a12 " -> "A12"; "2019/07" e "7-B" ammessi; stesso numero scritto in minuscolo = stesso cespite
+    let r = await crea('  zz12 ', 'ZzCesp1'); assert.strictEqual(r.status, 302); creati.push(Number(r.headers.get('location').split('/').pop()));
+    r = await crea('ZZ12', 'ZzCesp2'); assert.strictEqual(r.status, 302); creati.push(Number(r.headers.get('location').split('/').pop()));
+    r = await crea('ZZ2019/07', 'ZzCesp3'); assert.strictEqual(r.status, 302); creati.push(Number(r.headers.get('location').split('/').pop()));
+    const c = (await query(`SELECT a.modello, c.numero, c.id FROM asset a JOIN cespite c ON c.id = a.cespite_id WHERE a.id = ANY($1) ORDER BY a.id`, [creati])).rows;
+    assert.deepStrictEqual(c.map((x) => x.numero), ['ZZ12', 'ZZ12', 'ZZ2019/07']); assert.strictEqual(c[0].id, c[1].id, 'lo stesso cespite copre due asset');
+    // formato non valido: messaggio chiaro, niente salvataggio
+    r = await crea('ZZ 12!', 'ZzCespBad'); assert.strictEqual(r.status, 400); assert.match(await r.text(), /lettere, cifre e i simboli/);
+    assert.strictEqual((await query(`SELECT count(*)::int n FROM asset WHERE modello = 'ZzCespBad'`)).rows[0].n, 0);
+    // la scheda mostra "Cespite ZZ12"; si cerca per lettere; l'Excel non si rompe
+    assert.match(await (await req(`/asset/${creati[0]}`)).text(), /Cespite ZZ12/);
+    const html = await (await req('/asset?q=zz12&stato=Disponibile')).text();
+    assert.ok(html.includes(`href="/asset/${creati[0]}"`) && html.includes(`href="/asset/${creati[1]}"`) && !html.includes(`href="/asset/${creati[2]}"`));
+    assert.match(await (await req(`/asset/${creati[0]}/modifica`)).text(), /name="cespite_numero" value="ZZ12"/);
+    assert.strictEqual((await req('/asset?xlsx=1&ord=cespite')).status, 200);
+    // ordine naturale: 2 < 10 < 48 < alfanumerici (ZZ…) < senza cespite
+    const ids = async (url) => [...(await (await req(url)).text()).matchAll(/href="\/asset\/(\d+)"/g)].map((m) => Number(m[1]));
+    const ord = await ids('/asset?ord=cespite&dir=asc&stato=Disponibile&uscita=1');
+    const num = (await query('SELECT a.id, c.numero FROM asset a JOIN cespite c ON c.id = a.cespite_id WHERE a.id = ANY($1)', [ord])).rows.reduce((m, x) => m.set(x.id, x.numero), new Map());
+    const numeri = ord.map((i) => num.get(i)).filter(Boolean);
+    const soloCifre = numeri.filter((n) => /^\d+$/.test(n)).map(Number); assert.deepStrictEqual(soloCifre, [...soloCifre].sort((a, b) => a - b), 'i numerici in ordine numerico');
+    assert.ok(numeri.indexOf('ZZ12') > numeri.lastIndexOf(String(soloCifre[soloCifre.length - 1])), 'gli alfanumerici dopo i numerici');
+    // il database rifiuta comunque formati sbagliati
+    await assert.rejects(query(`INSERT INTO cespite (azienda_id, numero) VALUES ($1, 'ab c')`, [az]), /cespite_numero_formato/);
+  } finally {
+    await query('DELETE FROM movimento WHERE asset_id = ANY($1)', [creati]);
+    await query('DELETE FROM asset WHERE id = ANY($1)', [creati]);
+    await query(`DELETE FROM cespite WHERE numero LIKE 'ZZ%'`);
   }
 });
