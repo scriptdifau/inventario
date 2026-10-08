@@ -4,7 +4,7 @@
   "private": true,
   "description": "Inventario IT — Cart'armata edizioni / Le parole che servono",
   "main": "server.js",
-  "engines": { "node": ">=20" },
+  "engines": { "node": ">=20.12" },
   "scripts": {
     "start": "node server.js",
     "backup": "scripts/backup.sh",
