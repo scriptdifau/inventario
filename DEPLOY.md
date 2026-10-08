@@ -76,11 +76,28 @@ cartella dell'app (formato `CHIAVE=valore`), con il rischio di perderlo al deplo
 5. Modifica un asset di prova (stato/assegnatario) e verifica il movimento; poi ripristinalo.
 
 ## 7. Backup notturno
-```
-30 2 * * * cd /percorso/inventario && set -a && . ./.env && set +a && BACKUP_DIR=/percorso/backup scripts/backup.sh >> /percorso/backup/backup.log 2>&1
-```
-Poi: (a) prova un ripristino su un database di prova (`zcat file.sql.gz | psql nuovo`), (b) copia i backup fuori dal
-server (es. Drive): un backup sullo stesso server non protegge dalla perdita del server.
+`scripts/backup.sh` fa un dump SQL compresso, lo controlla (gzip + presenza della tabella `asset`), tiene gli ultimi 30 giorni
+e aggiorna il collegamento `ultimo.sql.gz`. **Da cron non va chiamato dalla cartella del deploy** (cambia nome a ogni
+aggiornamento): se ne tiene una copia fissa in `~/bin`.
+1. Password fuori dai comandi, in `~/.pgpass` (permessi 600), scritta senza che compaia a schermo né nella cronologia:
+   ```
+   read -rs -p "Password del database: " PW; echo
+   printf 'localhost:5432:NOMEDB:UTENTE:%s\n' "$PW" > ~/.pgpass; chmod 600 ~/.pgpass; unset PW
+   ```
+2. Copia dello script e configurazione (host, utente, database, cartella dei backup) in testa al file:
+   ```
+   mkdir -p ~/bin && cp .../app_source/scripts/backup.sh ~/bin/backup-inventario.sh
+   # in cima, dopo la riga #!/usr/bin/env bash, aggiungi:
+   export PATH="$HOME/bin:/usr/local/bin:/usr/bin:/bin:$PATH" PGHOST=localhost PGPORT=5432 PGUSER=UTENTE PGDATABASE=NOMEDB BACKUP_DIR="$HOME/backup-inventario"
+   ```
+3. Prova a mano (`~/bin/backup-inventario.sh`), poi cron (Site Tools → Dev → Cron Jobs, oppure `crontab -e`), per esempio ogni notte alle 02:30:
+   ```
+   30 2 * * * /home/UTENTE_SSH/bin/backup-inventario.sh >> /home/UTENTE_SSH/backup-inventario/backup.log 2>&1
+   ```
+   Il giorno dopo controlla `tail ~/backup-inventario/backup.log`: deve esserci una riga `backup ok`.
+4. **Ripristino** (provato): in un database vuoto, `zcat ~/backup-inventario/ultimo.sql.gz | psql -h localhost -U UTENTE NOMEDB_VUOTO`.
+5. Un backup che resta sullo stesso server non protegge dalla perdita del server: scarica ogni tanto `ultimo.sql.gz`
+   (SFTP o `scp -P 18765 UTENTE_SSH@HOST:backup-inventario/ultimo.sql.gz .`) e tienilo altrove (es. Drive).
 
 ## 8. Aggiornamenti
 Si fanno da soli: ogni merge su `main` avvia un deploy. Controlla in *Node.js → Deployment* che sia completato e
