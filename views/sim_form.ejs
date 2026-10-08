@@ -14,4 +14,5 @@
   <label>Giga saponetta<input name="giga_saponetta" value="<%= s.giga_saponetta ?? '' %>"></label>
   <label class="w">Note<textarea name="note" rows="3"><%= s.note ?? '' %></textarea></label>
 </div><p><button>Salva</button> <a class="btn sec" href="<%= s.asset_id ? '/asset/' + s.asset_id : '/' %>">Annulla</a></p></form>
+<% if (!nuova && s.id) { %><p><%- include('_elimina', {url: '/sim/' + s.id + '/elimina', conferma: 'Eliminare definitivamente questa SIM' + (s.numero ? ' (' + s.numero + ')' : '') + '? Non si può annullare. Se è solo disattivata, meglio impostare lo stato Cessata.'}) %></p><% } %>
 <%- include('_foot') %>

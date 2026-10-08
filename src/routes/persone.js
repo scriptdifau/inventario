@@ -93,5 +93,23 @@ router.post('/:id(\\d+)/modifica', async (req, res, next) => {
   catch (e) { req.body.id = req.params.id; errForm(e, req, res, next, false); }
 });
 
+// eliminazione: solo senza asset assegnati (anche dismessi: vanno prima riassegnati o scollegati);
+// movimenti e SIM che la citavano restano, senza il nome
+router.post('/:id(\\d+)/elimina', async (req, res, next) => {
+  try {
+    const p = (await query('SELECT id, nome, cognome FROM persona WHERE id = $1', [req.params.id])).rows[0];
+    if (!p) return next();
+    const n = (await query('SELECT count(*)::int n FROM asset WHERE persona_id = $1', [p.id])).rows[0].n;
+    if (n) {
+      return res.status(400).render('errore', { messaggio: `${p.nome} ${p.cognome} ha ancora ${n} asset assegnati (anche dismessi): riassegnali o toglili dalla persona prima di eliminarla.` });
+    }
+    await query('UPDATE movimento SET da_persona_id = NULL WHERE da_persona_id = $1', [p.id]);
+    await query('UPDATE movimento SET a_persona_id = NULL WHERE a_persona_id = $1', [p.id]);
+    await query('UPDATE sim SET persona_id = NULL WHERE persona_id = $1', [p.id]);
+    await query('DELETE FROM persona WHERE id = $1', [p.id]);
+    res.redirect('/persone');
+  } catch (e) { next(e); }
+});
+
 module.exports = router;
 module.exports.elenco = elenco;

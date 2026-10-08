@@ -3,7 +3,8 @@
 <div class="card"><div class="scheda">
   <%- include('_avatar', {nome: p.nome + ' ' + p.cognome}) %>
   <div style="flex:1;min-width:200px"><h1><%= p.nome %> <%= p.cognome %></h1><div class="mut"><%= p.email || 'nessuna email' %><%= p.azienda ? ' · ' + p.azienda : '' %><%= p.reparto ? ' · ' + p.reparto : '' %></div></div>
-  <%- include('_badge', {stato: p.stato}) %><a class="btn" href="/persone/<%= p.id %>/modifica">Modifica</a></div>
+  <%- include('_badge', {stato: p.stato}) %><a class="btn" href="/persone/<%= p.id %>/modifica">Modifica</a>
+  <%- include('_elimina', {url: '/persone/' + p.id + '/elimina', conferma: 'Eliminare definitivamente ' + p.nome + ' ' + p.cognome + '? Nello storico dei movimenti il suo nome sparisce. Non si può annullare. Se la persona ha solo lasciato l\'azienda, meglio impostare lo stato Cessato.'}) %></div>
   <div class="fatti" style="margin-top:18px">
   <% [['Stato Workspace', p.stato_workspace], ['Ingresso', data(p.data_ingresso)], ['Uscita', data(p.data_uscita)], ['Note', p.note]].forEach(([k, v]) => { if (v) { %><div><span><%= k %></span><b><%= v %></b></div><% } }) %>
   </div></div>

@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { query, nul } = require('../db');
+const { query, nul, pool } = require('../db');
 const { inviaXlsx, num, vuota } = require('../export');
 const { ordine, t, tn } = require('../ordina');
 
@@ -157,6 +157,23 @@ router.post('/:id(\\d+)/modifica', async (req, res, next) => {
     await salva(req, req.params.id);
     res.redirect('/asset/' + req.params.id);
   } catch (e) { req.body.id = req.params.id; rerender(e, req, res, next, false); }
+});
+
+// eliminazione definitiva: storico movimenti incluso; le SIM montate restano (senza telefono, con l'azienda dell'asset);
+// il cespite si cancella solo se nessun altro asset lo usa
+router.post('/:id(\\d+)/elimina', async (req, res, next) => {
+  const c = await pool.connect();
+  try {
+    await c.query('BEGIN');
+    const a = (await c.query('SELECT id, azienda_id, cespite_id FROM asset WHERE id = $1 FOR UPDATE', [req.params.id])).rows[0];
+    if (!a) { await c.query('ROLLBACK'); return next(); }
+    await c.query('UPDATE sim SET asset_id = NULL, azienda_id = coalesce(azienda_id, $2) WHERE asset_id = $1', [a.id, a.azienda_id]);
+    await c.query('DELETE FROM movimento WHERE asset_id = $1', [a.id]);
+    await c.query('DELETE FROM asset WHERE id = $1', [a.id]);
+    if (a.cespite_id) await c.query('DELETE FROM cespite c WHERE c.id = $1 AND NOT EXISTS (SELECT 1 FROM asset x WHERE x.cespite_id = c.id)', [a.cespite_id]);
+    await c.query('COMMIT');
+    res.redirect('/asset');
+  } catch (e) { await c.query('ROLLBACK').catch(() => {}); next(e); } finally { c.release(); }
 });
 
 // fatture di un fornitore (per il menu a cascata del form)

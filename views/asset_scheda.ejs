@@ -7,6 +7,7 @@
       <div class="mut"><%= [cesp(a.cespite), a.tipologia, a.azienda].filter(Boolean).join(' · ') %></div></div>
     <%- include('_badge', {stato: a.stato}) %>
     <a class="btn" href="/asset/<%= a.id %>/modifica">Modifica</a>
+    <%- include('_elimina', {url: '/asset/' + a.id + '/elimina', conferma: 'Eliminare definitivamente questo asset (' + ([a.marca, a.modello].filter(Boolean).join(' ') || a.tipologia) + ')? Si cancellano anche il suo storico movimenti; le SIM montate restano ma non sono più su un telefono. Non si può annullare. Se il dispositivo è solo dismesso, meglio cambiargli lo stato.'}) %>
   </div>
   <% if (a.assegnato_a) { %><div class="chi" style="display:flex;align-items:center;gap:10px;margin-top:16px"><%- include('_avatar', {nome: a.assegnato_a}) %><span>Assegnato a <b><%= a.assegnato_a %></b></span></div><% } %>
 </div>
