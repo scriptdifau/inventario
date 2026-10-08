@@ -1,0 +1,26 @@
+<%# albero di navigazione: Dashboard > Azienda > tipologie (con Antivirus e SIM sotto) + Persone; poi gli strumenti %>
+<% const on = (p) => path === p || path.startsWith(p + '/'); %>
+<nav class="albero" aria-label="Navigazione">
+  <a class="v0 <%= path === '/' ? 'on' : '' %>" href="/"><span>Dashboard</span></a>
+  <% (albero || []).forEach((az, i) => { %>
+    <div class="grp">
+      <a class="v0 az <%= path === '/az/' + az.slug ? 'on' : '' %>" href="/az/<%= az.slug %>"><span class="pt" style="background:var(--c<%= i + 1 %>)"></span><span><%= az.nome %></span><span class="c"><%= az.vivi %></span></a>
+      <% az.tipologie.forEach(t => { const b = '/az/' + az.slug + '/' + t.slug; %>
+        <a class="v1 <%= (path === b) ? 'on' : '' %>" href="<%= b %>"><%- include('_icon', {tipo: t.nome, dim: 16}) %><span><%= t.nome %></span><span class="c"><%= t.vivi %></span></a>
+        <% if (t.antivirus) { %><a class="v2 <%= on(b + '/antivirus') ? 'on' : '' %>" href="<%= b %>/antivirus"><span>Antivirus</span><% if (t.antivirus.problemi) { %><span class="c al"><%= t.antivirus.problemi %></span><% } %></a><% } %>
+        <% if (t.sim !== null) { %><a class="v2 <%= on(b + '/sim') ? 'on' : '' %>" href="<%= b %>/sim"><span>SIM</span><span class="c"><%= t.sim %></span></a><% } %>
+      <% }) %>
+      <a class="v1 <%= on('/az/' + az.slug + '/persone') ? 'on' : '' %>" href="/az/<%= az.slug %>/persone"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 5.2a3 3 0 0 1 0 5.6M21 20c0-2.6-1.6-4.8-4-5.6"/></svg><span>Persone</span><span class="c"><%= az.persone %></span></a>
+    </div>
+  <% }) %>
+  <div class="grp str"><div class="et">Strumenti</div>
+    <a class="v1 <%= on('/movimenti') ? 'on' : '' %>" href="/movimenti"><span>Movimenti</span></a>
+    <a class="v1 <%= on('/cespiti') ? 'on' : '' %>" href="/cespiti"><span>Cespiti ante 2018</span></a>
+    <a class="v1 <%= on('/importa') ? 'on' : '' %>" href="/importa"><span>Importa</span></a>
+    <div class="et" style="margin-top:10px">Elenchi completi</div>
+    <a class="v1 <%= path === '/asset' ? 'on' : '' %>" href="/asset"><span>Tutti gli asset</span></a>
+    <a class="v1 <%= path === '/persone' ? 'on' : '' %>" href="/persone"><span>Tutte le persone</span></a>
+    <a class="v1 <%= path === '/sim' ? 'on' : '' %>" href="/sim"><span>Tutte le SIM</span></a>
+    <a class="v1 <%= path === '/antivirus' ? 'on' : '' %>" href="/antivirus"><span>Antivirus (tutti)</span></a>
+  </div>
+</nav>

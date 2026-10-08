@@ -1,7 +1,23 @@
 <%- include('_head', {titolo: 'Antivirus'}) %>
-<h1>Controllo antivirus</h1>
-<p><a class="btn sec" href="<%= xlsUrl %>">⬇ Scarica Excel</a></p>
-<p style="color:var(--mut)">Ultimo report: <%= ultimo ? data(ultimo.importato) + ' (' + ultimo.file_nome + ')' : 'nessuno' %></p>
-<div class="tw"><table><tr><th>Asset</th><th>Azienda</th><th>Stato</th><th>Assegnato a</th><th>Hostname</th><th>Esito</th><th>Nel report</th><th>Ultimo rilevato</th></tr>
-<% righe.forEach(r => { %><tr><td><a href="/asset?q=<%= r.codice %>"><%= r.codice %></a></td><td><%= r.azienda %></td><td><%= r.stato %></td><td><%= r.assegnato_a %></td><td><%= r.hostname %></td><td class="<%= r.antivirus %>"><%= r.antivirus %></td><td><%= r.dispositivo_report %></td><td><%= data(r.ultimo_rilevato) %></td></tr><% }) %></table></div>
+<%- include('_briciole') %>
+<div class="titolo"><h1><%= ctx ? ctx.titolo : 'Controllo antivirus' %></h1><span class="sp"></span><a class="btn sec sm" href="<%= xlsUrl %>">⬇ Scarica Excel</a><a class="btn sm" href="/importa">Carica nuovo report</a></div>
+<%- include('_schede') %>
+<p class="sottotitolo">Ultimo report: <%= ultimo ? data(ultimo.importato) + ' (' + ultimo.file_nome + ')' : 'nessuno' %> · ogni PC e server Windows attivo deve comparire.</p>
+<% const n = (v) => righe.filter(r => r.antivirus === v).length; %>
+<div class="stat" style="margin-bottom:16px">
+  <div><b class="ok"><%= n('OK') %></b><span>protetti e aggiornati</span></div>
+  <div><b class="warn"><%= n('Da verificare') %></b><span>da verificare (fermi da più di 20 giorni)</span></div>
+  <div><b class="bad"><%= n('Mancante') %></b><span>assenti dal report</span></div>
+</div>
+<div class="righe">
+<% righe.forEach(r => { %>
+  <a class="riga r-av" href="/asset?q=<%= r.codice %>">
+    <span><%- include('_badge', {stato: r.antivirus}) %></span>
+    <span><span class="t"><%= r.codice %></span><br><span class="s"><%= r.hostname || 'nessun hostname' %> · <%= r.azienda %></span></span>
+    <span class="chi"><% if (r.assegnato_a) { %><%- include('_avatar', {nome: r.assegnato_a}) %><span class="nome"><%= r.assegnato_a %></span><% } else { %><span class="mut"><%= r.stato %></span><% } %></span>
+    <span class="s"><%= r.dispositivo_report ? 'nel report: ' + r.dispositivo_report : 'non trovato nel report' %></span>
+    <span class="s n"><%= r.ultimo_rilevato ? 'visto il ' + data(r.ultimo_rilevato) : '' %></span>
+  </a>
+<% }) %>
+</div>
 <%- include('_foot') %>

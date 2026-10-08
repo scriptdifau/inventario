@@ -1,12 +1,14 @@
 <!doctype html>
 <html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title><%= typeof titolo !== 'undefined' ? titolo + ' · ' : '' %>Inventario IT</title>
-<link rel="stylesheet" href="/static/style.css"></head><body>
-<nav>
-  <% [['/','Dashboard'],['/asset','Asset'],['/persone','Persone'],['/sim','SIM'],['/movimenti','Movimenti'],['/antivirus','Antivirus'],['/cespiti','Cespiti ante 2018'],['/importa','Importa']].forEach(([h,l]) => { %>
-    <a href="<%= h %>" class="<%= (h === '/' ? path === '/' : path.startsWith(h)) ? 'on' : '' %>"><%= l %></a>
-  <% }) %>
-  <span class="sp"></span><span style="color:var(--mut)"><%= utente.email %></span>
-  <form method="post" action="/auth/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="sec">Esci</button></form>
-</nav><main>
+<link rel="stylesheet" href="/static/style.css?v=4"></head><body>
+<header class="top"><div class="in">
+  <input type="checkbox" id="mnu" class="mnu-ck" aria-label="Apri il menu"><label for="mnu" class="hamb" title="Menu">☰</label>
+  <a class="brand" href="/">Inventario <b>IT</b></a>
+  <span class="sp"></span>
+  <div class="utente"><span class="mail"><%= utente.email %></span>
+    <form method="post" action="/auth/logout"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="sec sm btn">Esci</button></form></div>
+  <%- include('_albero') %>
+</div></header>
+<div class="shell"><main>
 <% if (errore) { %><div class="err"><%= errore %></div><% } %>

@@ -1,19 +1,21 @@
 const router = require('express').Router();
 const { query, nul } = require('../db');
 const { inviaXlsx, vuota } = require('../export');
+const { PERSONA_AZIENDA } = require('../albero');
 
 const CAMPI = ['nome', 'cognome', 'email', 'azienda_id', 'reparto', 'stato', 'data_ingresso', 'data_uscita', 'note'];
 const aziende = async () => (await query('SELECT id, nome FROM azienda ORDER BY id')).rows;
 
-router.get('/', async (req, res, next) => {
+async function elenco(req, res, next) {
   try {
-    const { q = '', stato = 'Attivo' } = req.query;
+    const { q = '', stato = 'Attivo', azienda = '' } = req.query;
     const p = []; const w = [];
+    if (azienda) { p.push(azienda); w.push(`az.nome = $${p.length}`); }
     if (stato) { p.push(stato); w.push(`p.stato = $${p.length}`); }
     if (q) { p.push(`%${q}%`); w.push(`(p.nome || ' ' || p.cognome ILIKE $${p.length} OR coalesce(p.email,'') ILIKE $${p.length})`); }
     const r = await query(`SELECT p.*, az.nome AS azienda,
         (SELECT count(*)::int FROM asset a JOIN stato_asset s ON s.nome = a.stato WHERE a.persona_id = p.id AND NOT s.fuori) AS n_asset
-      FROM persona p LEFT JOIN azienda az ON az.id = p.azienda_id ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY p.cognome, p.nome`, p);
+      FROM persona p LEFT JOIN azienda az ON az.id = ${PERSONA_AZIENDA} ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY p.cognome, p.nome`, p);
     if (vuota(req)) {
       return inviaXlsx(res, 'persone', [{ nome: 'Persone', righe: r.rows, colonne: [
         { h: 'Cognome', v: (x) => x.cognome }, { h: 'Nome', v: (x) => x.nome }, { h: 'Email', v: (x) => x.email },
@@ -22,9 +24,10 @@ router.get('/', async (req, res, next) => {
         { h: 'Data uscita', v: (x) => x.data_uscita, t: 'data' }, { h: 'N. asset', v: (x) => x.n_asset, t: 'num' },
         { h: 'Note', v: (x) => x.note }] }]);
     }
-    res.render('persone_lista', { righe: r.rows, filtri: { q, stato } });
+    res.render('persone_lista', { righe: r.rows, filtri: { q, stato, azienda } });
   } catch (e) { next(e); }
-});
+}
+router.get('/', elenco);
 
 router.get('/nuova', async (req, res, next) => {
   try { res.render('persona_form', { p: { stato: 'Attivo' }, nuova: true, aziende: await aziende() }); } catch (e) { next(e); }
@@ -77,3 +80,4 @@ router.post('/:id(\\d+)/modifica', async (req, res, next) => {
 });
 
 module.exports = router;
+module.exports.elenco = elenco;

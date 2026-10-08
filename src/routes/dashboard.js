@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { query } = require('../db');
 const { inviaXlsx, num, vuota } = require('../export');
+const { slug: slugAz } = require('../albero');
 
 router.get('/', async (req, res, next) => {
   try {
@@ -27,15 +28,46 @@ router.get('/', async (req, res, next) => {
           { h: 'N. asset', v: (x) => x.n_asset, t: 'num' }, { h: 'Valore €', v: (x) => num(x.valore), t: 'euro' }] },
       ]);
     }
-    const totali = {};
-    for (const r of riep.rows) totali[r.azienda] = (totali[r.azienda] || 0) + Number(r.importo);
-    res.render('dashboard', { riep: riep.rows, anni: anni.rows, av: av.rows, daVer: daVer.rows, ultimiMov: ultimiMov.rows, totali });
+    // una scheda per azienda: asset in vita, importo, ripartizione per stato e per tipologia
+    const STATI = ['assegnato', 'in_esercizio', 'disponibile', 'da_verificare', 'non_aziendale', 'estinto'];
+    const aziende = [];
+    for (const r of riep.rows) {
+      let a = aziende.find((x) => x.nome === r.azienda);
+      if (!a) { a = { nome: r.azienda, slug: slugAz(r.azienda), vivi: 0, importo: 0, stati: Object.fromEntries(STATI.map((k) => [k, 0])), tipologie: [] }; aziende.push(a); }
+      const vivi = Number(r.totale) - Number(r.usciti);
+      a.vivi += vivi; a.importo += Number(r.importo);
+      STATI.forEach((k) => { a.stati[k] += Number(r[k]); });   // i conteggi arrivano come stringhe (bigint)
+      if (vivi > 0) a.tipologie.push({ tipologia: r.tipologia, vivi, importo: Number(r.importo) });
+    }
+    aziende.forEach((a) => a.tipologie.sort((x, y) => y.vivi - x.vivi));
+    const avn = Object.fromEntries(av.rows.map((x) => [x.antivirus, x.n]));
+    const avTot = av.rows.reduce((t, x) => t + x.n, 0);
+
+    // grafico acquisti per anno: barre impilate per azienda (SVG calcolato qui, il template lo disegna)
+    const anniAsc = [...new Set(anni.rows.map((x) => x.anno))].sort((x, y) => x - y);
+    const barre = anniAsc.map((anno) => {
+      const parti = aziende.map((a, i) => ({ azienda: a.nome, i, valore: Number((anni.rows.find((x) => x.anno === anno && x.azienda === a.nome) || {}).valore || 0) }));
+      return { anno, parti, totale: parti.reduce((t, p) => t + p.valore, 0) };
+    });
+    const max = Math.max(1, ...barre.map((b) => b.totale));
+    const H = 150; const W = 640; const passo = W / Math.max(barre.length, 1); const bw = Math.min(40, passo * 0.6);
+    barre.forEach((b, k) => {
+      b.x = k * passo + (passo - bw) / 2; b.w = bw; let y = H;
+      b.parti.forEach((p) => { p.h = (p.valore / max) * H; y -= p.h; p.y = y; });
+      b.yTot = y;
+    });
+    res.render('dashboard', { aziende, av: avn, avTot, daVer: daVer.rows, ultimiMov: ultimiMov.rows, barre, grafico: { W, H } });
   } catch (e) { next(e); }
 });
 
-router.get('/antivirus', async (req, res, next) => {
+async function antivirusElenco(req, res, next) {
   try {
-    const r = await query(`SELECT * FROM v_controllo_antivirus ORDER BY (antivirus = 'OK'), codice`);
+    const { azienda = '', tipologia = '' } = req.query;
+    const p = []; const w = [];
+    if (azienda) { p.push(azienda); w.push(`v.azienda = $${p.length}`); }
+    if (tipologia) { p.push(tipologia); w.push(`a.tipologia = $${p.length}`); }
+    const r = await query(`SELECT v.*, a.tipologia FROM v_controllo_antivirus v JOIN asset a ON a.codice = v.codice
+      ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY (v.antivirus = 'OK'), v.codice`, p);
     const imp = await query('SELECT importato, file_nome FROM antivirus_import ORDER BY id DESC LIMIT 1');
     if (vuota(req)) {
       return inviaXlsx(res, 'antivirus', [{ nome: 'Controllo antivirus', righe: r.rows, colonne: [
@@ -45,6 +77,8 @@ router.get('/antivirus', async (req, res, next) => {
     }
     res.render('antivirus', { righe: r.rows, ultimo: imp.rows[0] });
   } catch (e) { next(e); }
-});
+}
+router.get('/antivirus', antivirusElenco);
 
 module.exports = router;
+module.exports.antivirusElenco = antivirusElenco;

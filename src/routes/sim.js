@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { query, nul } = require('../db');
 const { inviaXlsx, num, vuota } = require('../export');
+const { SIM_AZIENDA } = require('../albero');
 
 const CAMPI = ['numero', 'stato', 'persona_id', 'operatore', 'piano', 'costo_mensile', 'azienda_id', 'asset_id', 'giga_telefono', 'saponetta', 'giga_saponetta', 'note'];
 const STATI = ['Attiva', 'Sospesa', 'Cessata', 'Da verificare'];
@@ -14,14 +15,15 @@ async function lookup() {
   return { aziende: az.rows, persone: pe.rows, telefoni: tel.rows, stati: STATI };
 }
 
-router.get('/', async (req, res, next) => {
+async function elenco(req, res, next) {
   try {
-    const { q = '', stato = '' } = req.query;
+    const { q = '', stato = '', azienda = '' } = req.query;
     const p = []; const w = [];
+    if (azienda) { p.push(azienda); w.push(`az.nome = $${p.length}`); }
     if (stato) { p.push(stato); w.push(`s.stato = $${p.length}`); }
     if (q) { p.push(`%${q}%`); w.push(`(s.codice ILIKE $${p.length} OR coalesce(s.numero,'') ILIKE $${p.length} OR pe.nome || ' ' || pe.cognome ILIKE $${p.length})`); }
     const r = await query(`SELECT s.*, pe.nome || ' ' || pe.cognome AS persona, a.codice AS asset_codice, az.nome AS azienda
-      FROM sim s LEFT JOIN persona pe ON pe.id = s.persona_id LEFT JOIN asset a ON a.id = s.asset_id LEFT JOIN azienda az ON az.id = s.azienda_id
+      FROM sim s LEFT JOIN persona pe ON pe.id = s.persona_id LEFT JOIN asset a ON a.id = s.asset_id LEFT JOIN azienda az ON az.id = ${SIM_AZIENDA}
       ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY s.id`, p);
     if (vuota(req)) {
       return inviaXlsx(res, 'sim', [{ nome: 'SIM', righe: r.rows, colonne: [
@@ -31,9 +33,10 @@ router.get('/', async (req, res, next) => {
         { h: 'Telefono', v: (x) => x.asset_codice }, { h: 'Giga telefono', v: (x) => x.giga_telefono },
         { h: 'Saponetta', v: (x) => x.saponetta }, { h: 'Giga saponetta', v: (x) => x.giga_saponetta }, { h: 'Note', v: (x) => x.note }] }]);
     }
-    res.render('sim_lista', { righe: r.rows, filtri: { q, stato }, stati: STATI });
+    res.render('sim_lista', { righe: r.rows, filtri: { q, stato, azienda }, stati: STATI });
   } catch (e) { next(e); }
-});
+}
+router.get('/', elenco);
 
 router.get('/nuova', async (req, res, next) => {
   try { res.render('sim_form', { s: { stato: 'Attiva' }, nuova: true, ...(await lookup()) }); } catch (e) { next(e); }
@@ -73,3 +76,4 @@ router.post('/:id(\\d+)/modifica', async (req, res, next) => {
 });
 
 module.exports = router;
+module.exports.elenco = elenco;

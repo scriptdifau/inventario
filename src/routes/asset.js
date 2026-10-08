@@ -13,7 +13,7 @@ async function lookup() {
   return { aziende: az.rows, tipologie: tip.rows.map((r) => r.nome), stati: st.rows.map((r) => r.nome), persone: pe.rows, fornitori: fo.rows };
 }
 
-router.get('/', async (req, res, next) => {
+async function elenco(req, res, next) {
   try {
     const { q = '', stato = '', tipologia = '', azienda = '', uscita = '' } = req.query;
     const where = []; const p = [];
@@ -35,15 +35,22 @@ router.get('/', async (req, res, next) => {
         { h: 'Importo €', v: (x) => num(x.importo), t: 'euro' }, { h: 'Data dismissione', v: (x) => x.data_dismissione, t: 'data' },
         { h: 'Note', v: (x) => x.note }] }]);
     }
-    res.render('asset_lista', { righe: r.rows, filtri: { q, stato, tipologia, azienda, uscita }, ...(await lookup()) });
+    // conteggi per stato (asset in vita) per i filtri rapidi
+    const cw = ['NOT fuori']; const cp = [];
+    if (azienda) { cp.push(azienda); cw.push(`azienda = $${cp.length}`); }
+    if (tipologia) { cp.push(tipologia); cw.push(`tipologia = $${cp.length}`); }
+    const cs = await query(`SELECT stato, count(*)::int AS n FROM v_asset WHERE ${cw.join(' AND ')} GROUP BY stato`, cp);
+    const conteggi = Object.fromEntries(cs.rows.map((x) => [x.stato, x.n]));
+    res.render('asset_lista', { righe: r.rows, filtri: { q, stato, tipologia, azienda, uscita }, conteggi, ...(await lookup()) });
   } catch (e) { next(e); }
-});
+}
+router.get('/', elenco);
 
 const CAMPI = ['tipologia', 'stato', 'persona_id', 'marca', 'modello', 'ram_gb', 'storage_gb', 'sistema_operativo', 'serial', 'hostname',
   'azienda_id', 'fornitore_id', 'data_acquisto', 'importo', 'data_dismissione', 'note'];
 
 router.get('/nuovo', async (req, res, next) => {
-  try { res.render('asset_form', { a: { stato: 'Disponibile' }, nuovo: true, fatture: [], ...(await lookup()) }); } catch (e) { next(e); }
+  try { res.render('asset_form', { a: { stato: 'Disponibile', azienda_id: req.query.azienda_id, tipologia: req.query.tipologia }, nuovo: true, fatture: [], ...(await lookup()) }); } catch (e) { next(e); }
 });
 
 async function fatture(fornitoreId) {
@@ -127,3 +134,4 @@ router.get('/fatture', async (req, res, next) => {
 });
 
 module.exports = router;
+module.exports.elenco = elenco;
