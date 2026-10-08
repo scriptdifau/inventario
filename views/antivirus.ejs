@@ -1,0 +1,6 @@
+<%- include('_head', {titolo: 'Antivirus'}) %>
+<h1>Controllo antivirus</h1>
+<p style="color:var(--mut)">Ultimo report: <%= ultimo ? data(ultimo.importato) + ' (' + ultimo.file_nome + ')' : 'nessuno' %></p>
+<div class="tw"><table><tr><th>Asset</th><th>Azienda</th><th>Stato</th><th>Assegnato a</th><th>Hostname</th><th>Esito</th><th>Nel report</th><th>Ultimo rilevato</th></tr>
+<% righe.forEach(r => { %><tr><td><a href="/asset?q=<%= r.codice %>"><%= r.codice %></a></td><td><%= r.azienda %></td><td><%= r.stato %></td><td><%= r.assegnato_a %></td><td><%= r.hostname %></td><td class="<%= r.antivirus %>"><%= r.antivirus %></td><td><%= r.dispositivo_report %></td><td><%= data(r.ultimo_rilevato) %></td></tr><% }) %></table></div>
+<%- include('_foot') %>

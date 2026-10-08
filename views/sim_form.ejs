@@ -1,0 +1,17 @@
+<%- include('_head', {titolo: nuova ? 'Nuova SIM' : 'Modifica SIM'}) %>
+<h1><%= nuova ? 'Nuova SIM' : 'Modifica ' + s.codice %></h1>
+<form method="post" class="card"><input type="hidden" name="_csrf" value="<%= csrf %>"><div class="form">
+  <label>Numero<input name="numero" value="<%= s.numero ?? '' %>"></label>
+  <%- include('_sel', {nome:'stato', label:'Stato', opzioni: stati.map(t=>({v:t,l:t})), valore: s.stato, vuoto:false}) %>
+  <%- include('_sel', {nome:'persona_id', label:'Assegnata a', opzioni: persone.map(p=>({v:p.id,l:p.nome})), valore: s.persona_id, vuoto:true}) %>
+  <%- include('_sel', {nome:'azienda_id', label:'Azienda', opzioni: aziende.map(x=>({v:x.id,l:x.nome})), valore: s.azienda_id, vuoto:true}) %>
+  <label>Operatore<input name="operatore" value="<%= s.operatore ?? '' %>"></label>
+  <label>Piano<input name="piano" value="<%= s.piano ?? '' %>"></label>
+  <label>Costo mensile €<input type="number" step="0.01" name="costo_mensile" value="<%= s.costo_mensile ?? '' %>"></label>
+  <%- include('_sel', {nome:'asset_id', label:'Telefono', opzioni: telefoni.map(t=>({v:t.id,l:t.codice + ' ' + t.nome})), valore: s.asset_id, vuoto:true}) %>
+  <label>Giga telefono<input name="giga_telefono" value="<%= s.giga_telefono ?? '' %>"></label>
+  <%- include('_sel', {nome:'saponetta', label:'Saponetta', opzioni: [{v:'true',l:'Sì'},{v:'false',l:'No'}], valore: s.saponetta === null || s.saponetta === undefined ? '' : String(s.saponetta), vuoto:true}) %>
+  <label>Giga saponetta<input name="giga_saponetta" value="<%= s.giga_saponetta ?? '' %>"></label>
+  <label class="w">Note<textarea name="note" rows="3"><%= s.note ?? '' %></textarea></label>
+</div><p><button>Salva</button> <a class="btn sec" href="/sim">Annulla</a></p></form>
+<%- include('_foot') %>

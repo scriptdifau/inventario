@@ -1,0 +1,7 @@
+<%- include('_head', {titolo: 'SIM'}) %>
+<h1>SIM <a class="btn" href="/sim/nuova" style="font-size:.9rem">+ Nuova</a></h1>
+<form class="filtri" method="get"><label>Cerca<input name="q" value="<%= filtri.q %>"></label>
+<%- include('_sel', {nome:'stato', label:'Stato', opzioni: stati.map(t=>({v:t,l:t})), valore: filtri.stato, vuoto:true}) %><button>Filtra</button></form>
+<div class="tw"><table><tr><th>ID</th><th>Numero</th><th>Stato</th><th>Assegnata a</th><th>Operatore</th><th>Piano</th><th class="n">€/mese</th><th>Telefono</th><th>Azienda</th></tr>
+<% righe.forEach(r => { %><tr><td><a href="/sim/<%= r.id %>/modifica"><%= r.codice %></a></td><td><%= r.numero %></td><td><%= r.stato %></td><td><%= r.persona %></td><td><%= r.operatore %></td><td><%= r.piano %></td><td class="n"><%= euro(r.costo_mensile) %></td><td><%= r.asset_codice %></td><td><%= r.azienda %></td></tr><% }) %></table></div>
+<%- include('_foot') %>

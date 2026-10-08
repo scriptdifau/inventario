@@ -1,0 +1,16 @@
+<%- include('_head', {titolo: 'Importa'}) %>
+<h1>Importa CSV</h1>
+<% if (esito) { %><div class="card" style="border-color:<%= esito.errore ? 'var(--bad)' : 'var(--ok)' %>">
+  <b><%= esito.errore || esito.riepilogo %></b>
+  <% if (esito.avvisi && esito.avvisi.length) { %><ul><% esito.avvisi.forEach(a => { %><li><%= a %></li><% }) %></ul><% } %></div><% } %>
+<% [['antivirus','Report antivirus','Ogni upload aggiunge un nuovo report; il controllo usa l\'ultimo.'],
+    ['fatture','Fatture','Crea le fatture mancanti (fornitore + numero + data) e le collega agli asset indicati.'],
+    ['workspace','Utenti Google Workspace','Abbina per nomecognome dell\'email (qualsiasi dominio), aggiorna lo stato Workspace, crea le persone nuove e segnala chi non c\'è più. Non cambia lo stato Attivo/Cessato.']].forEach(([k, t, d]) => { %>
+<form method="post" action="/importa/<%= k %>" class="card">
+  <h2 style="margin-top:0"><%= t %></h2><p style="color:var(--mut)"><%= d %><br>Colonne: <%= formati[k] %></p>
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="nome" id="n-<%= k %>">
+  <p><input type="file" accept=".csv,text/csv" onchange="var f=this.files[0];if(!f)return;document.getElementById('n-<%= k %>').value=f.name;f.text().then(function(t){document.getElementById('t-<%= k %>').value=t})"></p>
+  <textarea name="csv" id="t-<%= k %>" rows="4" style="width:100%" placeholder="…oppure incolla qui il CSV" required></textarea>
+  <p><button>Importa</button></p>
+</form><% }) %>
+<%- include('_foot') %>

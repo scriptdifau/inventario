@@ -1,0 +1,26 @@
+<%- include('_head', {titolo: nuovo ? 'Nuovo asset' : 'Modifica ' + a.codice}) %>
+<h1><%= nuovo ? 'Nuovo asset' : 'Modifica ' + a.codice %></h1>
+<form method="post" class="card"><input type="hidden" name="_csrf" value="<%= csrf %>">
+<div class="form">
+  <%- include('_sel', {nome:'tipologia', label:'Tipologia', opzioni: tipologie.map(t=>({v:t,l:t})), valore: a.tipologia, vuoto:false}) %>
+  <%- include('_sel', {nome:'stato', label:'Stato', opzioni: stati.map(t=>({v:t,l:t})), valore: a.stato, vuoto:false}) %>
+  <%- include('_sel', {nome:'persona_id', label:'Assegnato a', opzioni: persone.map(p=>({v:p.id,l:p.nome + (p.stato !== 'Attivo' ? ' (' + p.stato + ')' : '')})), valore: a.persona_id, vuoto:true}) %>
+  <%- include('_sel', {nome:'azienda_id', label:'Azienda', opzioni: aziende.map(x=>({v:x.id,l:x.nome})), valore: a.azienda_id, vuoto:false}) %>
+  <label>Marca<input name="marca" value="<%= a.marca ?? '' %>"></label>
+  <label>Modello<input name="modello" value="<%= a.modello ?? '' %>"></label>
+  <label>RAM (GB)<input type="number" name="ram_gb" min="1" value="<%= a.ram_gb ?? '' %>"></label>
+  <label>Storage (GB)<input type="number" name="storage_gb" min="1" value="<%= a.storage_gb ?? '' %>"></label>
+  <label>Sistema operativo<input name="sistema_operativo" value="<%= a.sistema_operativo ?? '' %>"></label>
+  <label>Serial<input name="serial" value="<%= a.serial ?? '' %>"></label>
+  <label>Hostname<input name="hostname" value="<%= a.hostname ?? '' %>"></label>
+  <label>N. cespite<input type="number" name="cespite_numero" value="<%= a.cespite_numero ?? '' %>"></label>
+  <%- include('_sel', {nome:'fornitore_id', label:'Fornitore', opzioni: fornitori.map(x=>({v:x.id,l:x.nome})), valore: a.fornitore_id, vuoto:true}) %>
+  <%- include('_sel', {nome:'fattura_id', label:'Fattura (salva prima il fornitore per vederle)', opzioni: fatture.map(f=>({v:f.id,l:f.numero + (f.data ? ' · ' + data(f.data) : '')})), valore: a.fattura_id, vuoto:true}) %>
+  <label>Data acquisto<input type="date" name="data_acquisto" value="<%= iso(a.data_acquisto) %>"></label>
+  <label>Importo €<input type="number" step="0.01" min="0" name="importo" value="<%= a.importo ?? '' %>"></label>
+  <label>Data dismissione<input type="date" name="data_dismissione" value="<%= iso(a.data_dismissione) %>"></label>
+  <label class="w">Note<textarea name="note" rows="3"><%= a.note ?? '' %></textarea></label>
+</div>
+<p><button>Salva</button> <a class="btn sec" href="<%= nuovo ? '/asset' : '/asset/' + a.id %>">Annulla</a></p>
+</form>
+<%- include('_foot') %>

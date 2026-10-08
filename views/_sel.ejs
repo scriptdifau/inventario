@@ -1,0 +1,3 @@
+<%# parametri: nome, label, opzioni [{v,l}], valore, vuoto %>
+<label><%= label %><select name="<%= nome %>"><% if (vuoto) { %><option value="">—</option><% } %>
+<% opzioni.forEach(o => { %><option value="<%= o.v %>" <%= String(o.v) === String(valore ?? '') ? 'selected' : '' %>><%= o.l %></option><% }) %></select></label>

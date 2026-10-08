@@ -1,0 +1,8 @@
+<%- include('_head', {titolo: 'Movimenti'}) %>
+<h1>Movimenti</h1>
+<form class="filtri" method="get"><label>Cerca<input name="q" value="<%= filtri.q %>" placeholder="asset o persona"></label>
+<%- include('_sel', {nome:'tipo', label:'Tipo', opzioni: tipi.map(t=>({v:t,l:t})), valore: filtri.tipo, vuoto:true}) %><button>Filtra</button></form>
+<div class="tw"><table><tr><th>Data</th><th>Tipo</th><th>Asset</th><th>Da</th><th>A</th><th>Stato</th><th>Note</th></tr>
+<% righe.forEach(m => { %><tr><td><%= data(m.data) %></td><td><%= m.tipo %></td><td><a href="/asset/<%= m.asset_id %>"><%= m.codice %></a></td><td><%= m.da %></td><td><%= m.a %></td><td><%= m.stato_prima || '' %> → <%= m.stato_dopo || '' %></td><td><%= m.note %></td></tr><% }) %></table></div>
+<p style="color:var(--mut)">Ultimi 500.</p>
+<%- include('_foot') %>

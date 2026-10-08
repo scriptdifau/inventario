@@ -1,0 +1,14 @@
+<%- include('_head', {titolo: a.codice}) %>
+<h1><%= a.codice %> · <%= a.tipologia %> <a class="btn" href="/asset/<%= a.id %>/modifica" style="font-size:.9rem">Modifica</a></h1>
+<div class="card"><dl>
+<% [['Stato',a.stato],['Assegnato a',a.assegnato_a],['Marca',a.marca],['Modello',a.modello],['RAM (GB)',a.ram_gb],['Storage (GB)',a.storage_gb],['Sistema operativo',a.sistema_operativo],['Serial',a.serial],['Hostname',a.hostname],['Azienda',a.azienda],['Cespite',a.cespite],['Fornitore',a.fornitore],['N. fattura',a.n_fattura],['Data acquisto',data(a.data_acquisto)],['Importo',euro(a.importo)],['Data dismissione',data(a.data_dismissione)],['Note',a.note]].forEach(([k,v]) => { if (v !== null && v !== undefined && v !== '') { %>
+<dt><%= k %></dt><dd><%= v %></dd><% } }) %></dl></div>
+<% if (sim.length) { %><h2>SIM collegate</h2><ul><% sim.forEach(s => { %><li><%= s.codice %> · <%= s.numero %> (<%= s.stato %>)</li><% }) %></ul><% } %>
+<h2>Storico movimenti</h2>
+<div class="tw"><table><tr><th>Data</th><th>Tipo</th><th>Da</th><th>A</th><th>Stato</th><th>Note</th></tr>
+<% mov.forEach(m => { %><tr><td><%= data(m.data) %></td><td><%= m.tipo %></td><td><%= m.da %></td><td><%= m.a %></td><td><%= m.stato_prima || '' %> → <%= m.stato_dopo || '' %></td><td><%= m.note %></td></tr><% }) %></table></div>
+<form method="post" action="/movimenti" class="filtri" style="margin-top:12px">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="asset_id" value="<%= a.id %>">
+  <label>Data<input type="date" name="data"></label><label style="flex:1">Aggiungi nota<input name="note" required></label><button class="sec">Aggiungi</button>
+</form>
+<%- include('_foot') %>
