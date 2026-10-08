@@ -31,4 +31,8 @@ test('configurazione e chiave (JSON o base64)', () => {
   assert.strictEqual(chiave({ GOOGLE_SA_KEY: Buffer.from(k).toString('base64') }).private_key, 'KEY');
   assert.throws(() => chiave({ GOOGLE_SA_KEY: '{"a":1}' }), /non è valida/);
   assert.strictEqual(chiave({}), null);
+  const vuoto = require('path').join(require('os').tmpdir(), 'chiave-vuota-' + process.pid + '.json');
+  require('fs').writeFileSync(vuoto, '\n');
+  assert.throws(() => chiave({ GOOGLE_SA_KEY_FILE: vuoto }), /è vuoto/);
+  require('fs').unlinkSync(vuoto);
 });
