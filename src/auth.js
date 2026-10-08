@@ -1,7 +1,9 @@
 const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
 
-const domain = () => (process.env.ALLOWED_DOMAIN || 'terre.it').toLowerCase();
+// Domini della stessa Google Workspace: sia l'email sia il claim `hd` di Google devono stare in questo elenco.
+const domini = () => (process.env.ALLOWED_DOMAINS || 'terre.it,leparolecheservono.it,falacosagiusta.org')
+  .split(',').map((d) => d.trim().toLowerCase()).filter(Boolean);
 const isProd = () => process.env.NODE_ENV === 'production';
 const base = () => (process.env.BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
 
@@ -9,10 +11,11 @@ function client() {
   return new OAuth2Client(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET, `${base()}/auth/callback`);
 }
 
-// l'email deve essere verificata, del dominio e (se presente) con hd coerente
+// l'email deve essere verificata, su un dominio ammesso e l'account Workspace (hd) pure: esclude i gmail.com
 function emailAmmessa(payload) {
   const email = String(payload.email || '').toLowerCase();
-  return payload.email_verified === true && email.endsWith('@' + domain()) && (!payload.hd || payload.hd.toLowerCase() === domain());
+  const dom = email.split('@')[1];
+  return payload.email_verified === true && domini().includes(dom) && domini().includes(String(payload.hd || '').toLowerCase());
 }
 
 // tutto richiede login, tranne /auth/* e /healthz
@@ -42,7 +45,7 @@ function routes(router) {
     if (!process.env.GOOGLE_CLIENT_ID) return res.status(500).send('Login Google non configurato (GOOGLE_CLIENT_ID).');
     const state = crypto.randomBytes(16).toString('hex');
     req.session.oauthState = state;
-    res.redirect(client().generateAuthUrl({ scope: ['openid', 'email', 'profile'], state, hd: domain(), prompt: 'select_account' }));
+    res.redirect(client().generateAuthUrl({ scope: ['openid', 'email', 'profile'], state, hd: '*', prompt: 'select_account' }));
   });
 
   router.get('/auth/callback', async (req, res) => {
@@ -54,7 +57,7 @@ function routes(router) {
       const { tokens } = await c.getToken(String(code));
       const ticket = await c.verifyIdToken({ idToken: tokens.id_token, audience: process.env.GOOGLE_CLIENT_ID });
       const p = ticket.getPayload();
-      if (!emailAmmessa(p)) return res.status(403).send(`Accesso consentito solo agli account @${domain()}`);
+      if (!emailAmmessa(p)) return res.status(403).send(`Accesso consentito solo agli account ${domini().map((d) => '@' + d).join(', ')}`);
       const dopo = req.session.dopoLogin || '/';
       req.session.utente = { email: p.email.toLowerCase(), nome: p.name || p.email };
       delete req.session.dopoLogin;

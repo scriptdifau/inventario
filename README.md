@@ -12,10 +12,10 @@ npm install && npm start
 In sviluppo si può impostare `DEV_LOGIN_EMAIL` per saltare Google (ignorato con `NODE_ENV=production`).
 
 ## Login
-Google OAuth ("Applicazione web"): redirect URI `BASE_URL/auth/callback`. Accettati solo account Workspace `@ALLOWED_DOMAIN` (default `terre.it`) con email verificata. Ogni pagina richiede login; pubblici solo `/auth/*` e `/healthz`.
+Google OAuth ("Applicazione web"): redirect URI `BASE_URL/auth/callback`. Accettati solo account della stessa Workspace: email verificata e claim `hd` in `ALLOWED_DOMAINS` (default `terre.it`, `leparolecheservono.it`, `falacosagiusta.org`). Ogni pagina richiede login; pubblici solo `/auth/*` e `/healthz`.
 
 ## Test
 `DATABASE_URL=... npm test` (usa il database caricato; ripristina le modifiche che fa).
 
 ## Stato
-Passo 1 (HANDOFF) fatto: asset (elenco/scheda/modifica/nuovo), persone, SIM, movimenti, dashboard/riepilogo, controllo antivirus (sola lettura). Gli asset non si cancellano. Restano i punti 2–5.
+Passo 1 (HANDOFF) fatto: asset (elenco/scheda/modifica/nuovo), persone, SIM, movimenti, dashboard/riepilogo, controllo antivirus (sola lettura). Gli asset non si cancellano. Punto 2 (pagina **Importa**): upload CSV antivirus, import fatture (con collegamento agli asset) e utenti Workspace da export CSV della console Admin (la sync via API Admin SDK richiede un service account: non fatta). Restano i punti 3–5.

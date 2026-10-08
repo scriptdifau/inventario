@@ -22,7 +22,7 @@ function creaApp() {
 
   app.use(cookieSession({ name: 'inv', keys: [process.env.SESSION_SECRET || 'solo-sviluppo'], maxAge: 8 * 3600 * 1000,
     httpOnly: true, sameSite: 'lax', secure: prod }));
-  app.use(express.urlencoded({ extended: false, limit: '1mb' }));
+  app.use(express.urlencoded({ extended: false, limit: '5mb' }));
   auth.routes(app);
   app.use(auth.richiediLogin);
   app.use(auth.csrf);
@@ -43,6 +43,7 @@ function creaApp() {
   app.use('/persone', require('./routes/persone'));
   app.use('/sim', require('./routes/sim'));
   app.use('/movimenti', require('./routes/movimenti'));
+  app.use('/importa', require('./routes/importa'));
 
   app.use((req, res) => res.status(404).render('errore', { messaggio: 'Pagina non trovata' }));
   app.use((err, req, res, next) => {

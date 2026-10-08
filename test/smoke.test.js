@@ -58,3 +58,22 @@ test('modifica asset: il trigger registra il movimento; stato incoerente rifiuta
   await query(`UPDATE asset SET stato = 'Disponibile', note = NULL WHERE id = $1`, [a.id]);
   await query(`DELETE FROM movimento WHERE asset_id = $1 AND id = (SELECT max(id) FROM movimento WHERE asset_id = $1)`, [a.id]);
 });
+
+test('import CSV: antivirus, fatture, workspace', { skip }, async () => {
+  const { query } = require('../src/db');
+  const t = await csrf('/importa');
+  // antivirus: nuovo report, poi ripristino
+  const avPrima = (await query('SELECT max(id) m FROM antivirus_import')).rows[0].m;
+  let r = await post('/importa/antivirus', { _csrf: t, nome: 't.csv', csv: 'Dispositivo,Stato,Ultimo rilevato\nPC-TEST,Protetto,10/08/2026 10:00\nPC-TEST,Protetto,10/08/2026 10:00' });
+  assert.strictEqual(r.status, 200);
+  assert.match(await r.text(), /1 dispositivi importati/);
+  await query('DELETE FROM antivirus_import WHERE id > $1', [avPrima]);
+  // fatture + workspace dentro una verifica non distruttiva: CSV vuoto/invalidi
+  r = await post('/importa/fatture', { _csrf: t, csv: 'Fornitore,Numero,Data,Asset\nZZ Test,9999,08/10/2026,AST-999' });
+  assert.match(await r.text(), /AST-999 non esiste/);
+  await query(`DELETE FROM fattura WHERE numero = '9999'`); await query(`DELETE FROM fornitore WHERE nome = 'ZZ Test'`);
+  r = await post('/importa/workspace', { _csrf: t, csv: 'First Name [Required],Last Name [Required],Email Address [Required],Status [READ ONLY]\nZz,Test,zz.test@terre.it,Active' });
+  assert.match(await r.text(), /1 nuove/);
+  await query(`DELETE FROM persona WHERE email = 'zz.test@terre.it'`);
+  assert.strictEqual((await post('/importa/antivirus', { _csrf: t, csv: 'x\n' })).status, 400);
+});
