@@ -32,6 +32,9 @@ Albero a sinistra: **Dashboard** > **Cart'armata** / **Le parole** > una pagina 
 ## Ordinamento
 Le liste (asset, SIM, persone, antivirus, cespiti) si ordinano cliccando l'intestazione di una colonna (di nuovo per invertire) o dal menu "Ordina per" (telefono e schede delle persone); l'ordine sta nell'indirizzo (`?ord=<colonna>&dir=asc|desc`) e vale anche per Excel. Predefinito: per **cognome** della persona (chi non ne ha, in fondo); nell'antivirus prima i problemi, poi per persona. Sono ammesse solo le colonne previste: altri valori vengono ignorati. I movimenti restano in ordine di data.
 
+## Migrazioni del database
+I file in `migrazioni/` si applicano una volta, in ordine, con `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f migrazioni/NNN_nome.sql`, **prima** di usare la versione dell'app che li richiede. Sono pensati per poter essere rilanciati senza danni. `003_numero_fattura.sql` toglie il ".0" finale dai numeri di fattura importati dal foglio (`4198.0` → `4198`), salta e segnala i numeri che andrebbero a duplicarne un altro, e stampa un riepilogo (corrette / saltate / fatture totali).
+
 ## Esportazione Excel
 Ogni vista (Dashboard, Asset, Persone, SIM, Movimenti, Antivirus, Cespiti ante 2018) ha il link **Scarica Excel**: scarica un `.xlsx` con gli stessi filtri attivi nella pagina (aggiungendo `xlsx=1` all'indirizzo). Il Movimenti scarica tutte le righe filtrate, non solo le ultime 500. Il file è generato da `src/xlsx.js`, senza dipendenze aggiuntive.
 

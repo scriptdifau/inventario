@@ -278,3 +278,19 @@ test('SIM come simbolo sul telefono, dettaglio nella scheda, niente pagina SIM; 
   // l'Excel degli asset porta i dati della SIM
   assert.strictEqual((await req('/az/cart-armata/telefono?xlsx=1')).status, 200);
 });
+
+
+test('numeri di fattura senza ".0": dati di partenza e import da CSV', { skip }, async () => {
+  const { query } = require('../src/db');
+  // il database va caricato con l'import.sql aggiornato (o con migrazioni/003_numero_fattura.sql)
+  assert.strictEqual((await query("SELECT count(*)::int n FROM fattura WHERE numero ~ '\\.0$'")).rows[0].n, 0);
+  assert.match((await (await req('/asset/1')).text()), /<b>4198<\/b>/);
+
+  // un CSV con "4198.0" (come lo esporta Excel) ritrova la fattura 4198 esistente e non ne crea una doppia
+  const f = (await query("SELECT f.numero, to_char(f.data, 'DD/MM/YYYY') AS data, fo.nome FROM fattura f JOIN fornitore fo ON fo.id = f.fornitore_id WHERE f.numero = '4198'")).rows[0];
+  const prima = (await query('SELECT count(*)::int n FROM fattura')).rows[0].n;
+  const t = await csrf('/importa');
+  const r = await post('/importa/fatture', { _csrf: t, csv: `Fornitore,Numero,Data,Asset\n${f.nome},4198.0,${f.data},` });
+  assert.match(await r.text(), /0 fatture nuove/);
+  assert.strictEqual((await query('SELECT count(*)::int n FROM fattura')).rows[0].n, prima);
+});

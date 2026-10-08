@@ -49,4 +49,10 @@ function parseData(v, formato = 'dmy') {
   return `${String(y).padStart(4, '0')}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}` + (m[4] !== undefined ? ` ${String(h).padStart(2, '0')}:${String(mi).padStart(2, '0')}` : '');
 }
 
-module.exports = { parseCsv, col, parseData };
+// numero di documento: una cella numerica passata da Excel/CSV può arrivare come "4198.0"; qui torna "4198"
+function numeroDocumento(v) {
+  const t = String(v ?? '').trim();
+  return /^\d+\.0+$/.test(t) ? t.replace(/\.0+$/, '') : t;
+}
+
+module.exports = { parseCsv, col, parseData, numeroDocumento };

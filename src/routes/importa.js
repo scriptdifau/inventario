@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { pool } = require('../db');
-const { parseCsv, col, parseData } = require('../csv');
+const { parseCsv, col, parseData, numeroDocumento } = require('../csv');
 
 const FORMATI = {
   antivirus: 'export della console antivirus: Nome (o Dispositivo), Stato, Ultimo rilevato, Utente in uso, SO, Indirizzo IP locale, Indirizzo MAC',
@@ -62,7 +62,7 @@ router.post('/fatture', async (req, res, next) => {
       const avvisi = []; let nFatt = 0; let nAsset = 0;
       for (const [i, r] of righe.entries()) {
         const n = i + 2;
-        const forn = col(r, 'Fornitore', 'Supplier'); const num = col(r, 'Numero', 'N. fattura', 'Fattura');
+        const forn = col(r, 'Fornitore', 'Supplier'); const num = numeroDocumento(col(r, 'Numero', 'N. fattura', 'Fattura'));
         if (!forn || !num) { avvisi.push(`Riga ${n}: fornitore o numero mancante, saltata`); continue; }
         const rawData = col(r, 'Data');
         const data = parseData(rawData, 'dmy');
