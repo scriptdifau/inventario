@@ -324,7 +324,13 @@ test('elimina: asset (storico e SIM scollegate), persona (solo senza asset), SIM
   r = await post(`/asset/${as}/elimina`, { _csrf: t });
   assert.strictEqual(r.status, 302);
   assert.strictEqual((await query('SELECT count(*)::int n FROM asset WHERE id = $1', [as])).rows[0].n, 0);
+  // lo storico resta (asset_id NULL, descrizione in oggetto) e c'è la riga "Eliminazione" con chi l'ha fatta
   assert.strictEqual((await query('SELECT count(*)::int n FROM movimento WHERE asset_id = $1', [as])).rows[0].n, 0);
+  const log = (await query(`SELECT tipo, oggetto, utente FROM movimento WHERE oggetto LIKE 'Zz tel%' ORDER BY id`)).rows;
+  assert.ok(log.length >= 2 && log.every((x) => x.oggetto === 'Zz tel'), 'storico e eliminazione leggibili');
+  assert.strictEqual(log[log.length - 1].tipo, 'Eliminazione'); assert.strictEqual(log[log.length - 1].utente, 'test@terre.it');
+  const pag = await (await req('/movimenti?q=Zz')).text();
+  assert.match(pag, /Eliminazione/); assert.match(pag, /Zz tel/); assert.match(pag, /da test@terre\.it/);
   const s = (await query('SELECT asset_id, azienda_id FROM sim WHERE id = $1', [sim])).rows[0];
   assert.strictEqual(s.asset_id, null); assert.strictEqual(s.azienda_id, az);
   assert.strictEqual((await post(`/asset/${as}/elimina`, { _csrf: t })).status, 404);
@@ -338,4 +344,7 @@ test('elimina: asset (storico e SIM scollegate), persona (solo senza asset), SIM
   assert.strictEqual((await post(`/persone/${pe}/elimina`, { _csrf: t })).status, 302);
   assert.strictEqual((await query('SELECT count(*)::int n FROM persona WHERE id = $1', [pe])).rows[0].n, 0);
   assert.strictEqual((await post(`/persone/${pe}/elimina`, { _csrf: t })).status, 404);
+  assert.match(await (await req('/movimenti?q=Elimina')).text(), /Eliminazione persona/);
+  assert.strictEqual((await req('/movimenti?xlsx=1')).status, 200);
+  await query(`DELETE FROM movimento WHERE oggetto LIKE 'Zz%' OR oggetto LIKE 'SIM-%'`);
 });

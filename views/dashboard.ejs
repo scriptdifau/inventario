@@ -65,7 +65,7 @@
   <h2>Ultimi movimenti <a class="btn sec sm" style="margin-left:auto" href="/movimenti">Tutti</a></h2>
   <ul class="storia">
   <% ultimiMov.forEach(m => { %>
-    <li><span class="pt"></span><div><span class="t"><%= m.tipo %></span> · <a href="/asset/<%= m.asset_id %>"><%= nomeAsset(m) %></a><%= m.cespite ? ' · ' + cesp(m.cespite) : '' %>
+    <li><span class="pt"></span><div><span class="t"><%= m.tipo %></span> · <% if (m.asset_id) { %><a href="/asset/<%= m.asset_id %>"><%= nomeAsset(m) %></a><%= m.cespite ? ' · ' + cesp(m.cespite) : '' %><% } else { %><b><%= m.oggetto || 'asset eliminato' %></b><% } %>
       <div class="s"><%= data(m.data) %><% if (m.stato_prima || m.stato_dopo) { %> · <%= m.stato_prima || '—' %> → <%= m.stato_dopo || '—' %><% } %></div></div></li>
   <% }) %>
   </ul>
