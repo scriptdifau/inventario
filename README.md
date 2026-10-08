@@ -44,3 +44,5 @@ Ogni vista (Dashboard, Asset, Persone, SIM, Movimenti, Antivirus, Cespiti ante 2
 Restano i punti 5 (foglio in sola lettura per un mese) e la sincronizzazione Workspace via API.
 
 Per la messa in produzione vedi `DEPLOY.md`.
+
+**Età dell'hardware**: nelle liste degli asset ogni dispositivo con data di acquisto mostra l'età (per PC, Mac e server in giallo oltre 4 anni e in rosso oltre 6; soglie con `ETA_ATTENZIONE` / `ETA_SOSTITUIRE`). Il filtro **Età** ("oltre 4 / oltre 6 anni"), l'ordinamento per età e la colonna "Età (anni)" dell'Excel aiutano a trovare cosa sostituire; la Dashboard ha il riquadro **Età dei computer** (media e quanti oltre soglia, con link alla lista filtrata). Importando il **report antivirus** il sistema operativo degli asset con lo stesso hostname si aggiorna da solo.

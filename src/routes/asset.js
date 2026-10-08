@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { query, nul, pool } = require('../db');
 const { inviaXlsx, num, vuota } = require('../export');
 const { ordine, t, tn } = require('../ordina');
+const { sqlEta, soglia } = require('../eta');
 
 const ORD_ASSET = {
   dispositivo: { etichetta: 'Dispositivo', col: [t('marca'), t('modello')] },
@@ -12,6 +13,7 @@ const ORD_ASSET = {
   azienda: { etichetta: 'Azienda', col: ['lower(azienda)'] },
   importo: { etichetta: 'Importo', col: ['importo'] },
   acquisto: { etichetta: 'Data acquisto', col: ['data_acquisto'] },
+  eta: { etichetta: 'Età', col: ['eta'] },
 };
 
 async function lookup() {
@@ -27,7 +29,7 @@ async function lookup() {
 
 async function elenco(req, res, next) {
   try {
-    const { q = '', stato = '', tipologia = '', azienda = '', uscita = '', av = '' } = req.query;
+    const { q = '', stato = '', tipologia = '', azienda = '', uscita = '', av = '', eta = '' } = req.query;
     const where = []; const p = [];
     if (!uscita) where.push('NOT fuori');
     if (q) { p.push(`%${q}%`); where.push(`(cespite::text ILIKE $${p.length} OR coalesce(sim_numero,'') ILIKE $${p.length} OR codice ILIKE $${p.length} OR coalesce(assegnato_a,'') ILIKE $${p.length} OR coalesce(modello,'') ILIKE $${p.length}
@@ -35,11 +37,13 @@ async function elenco(req, res, next) {
     if (stato) { p.push(stato); where.push(`stato = $${p.length}`); }
     if (tipologia) { p.push(tipologia); where.push(`tipologia = $${p.length}`); }
     if (azienda) { p.push(azienda); where.push(`azienda = $${p.length}`); }
+    const sg = soglia(eta);
+    if (sg !== null) { p.push(sg); where.push(`eta >= $${p.length}`); }
     if (av === 'problemi') where.push("av_stato IS NOT NULL AND av_stato <> 'OK'");
     if (av === 'ok') where.push("av_stato = 'OK'");
     const ord = ordine(req, ORD_ASSET, 'persona', 'id');
     // k_cognome/k_nome: ordine per cognome della persona (v_asset ha solo "Nome Cognome")
-    const r = await query(`SELECT * FROM (SELECT v.*, ${tn('pe.cognome')} AS k_cognome, ${tn('pe.nome')} AS k_nome, av.antivirus AS av_stato, av.ultimo_rilevato AS av_visto,
+    const r = await query(`SELECT * FROM (SELECT v.*, ${tn('pe.cognome')} AS k_cognome, ${tn('pe.nome')} AS k_nome, ${sqlEta('v.data_acquisto')} AS eta, av.antivirus AS av_stato, av.ultimo_rilevato AS av_visto,
         sm.numero AS sim_numero, sm.stato AS sim_stato, sm.operatore AS sim_operatore, sm.piano AS sim_piano, sm.costo_mensile AS sim_costo
         FROM v_asset v LEFT JOIN asset a ON a.id = v.id LEFT JOIN persona pe ON pe.id = a.persona_id LEFT JOIN v_controllo_antivirus av ON av.codice = v.codice
         LEFT JOIN LATERAL (SELECT numero, stato, operatore, piano, costo_mensile FROM sim s WHERE s.asset_id = v.id ORDER BY (s.stato = 'Cessata'), s.id LIMIT 1) sm ON true) x
@@ -54,7 +58,7 @@ async function elenco(req, res, next) {
         { h: 'Azienda', v: (x) => x.azienda }, { h: 'Fornitore', v: (x) => x.fornitore },
         { h: 'Numero SIM', v: (x) => x.sim_numero }, { h: 'Stato SIM', v: (x) => x.sim_stato }, { h: 'Operatore SIM', v: (x) => x.sim_operatore },
         { h: 'Piano SIM', v: (x) => x.sim_piano }, { h: 'Costo mensile SIM €', v: (x) => num(x.sim_costo), t: 'euro' },
-        { h: 'N. fattura', v: (x) => x.n_fattura }, { h: 'Data acquisto', v: (x) => x.data_acquisto, t: 'data' },
+        { h: 'N. fattura', v: (x) => x.n_fattura }, { h: 'Data acquisto', v: (x) => x.data_acquisto, t: 'data' }, { h: 'Età (anni)', v: (x) => (x.eta === null ? null : Math.round(Number(x.eta) * 10) / 10), t: 'num' },
         { h: 'Importo €', v: (x) => num(x.importo), t: 'euro' }, { h: 'Data dismissione', v: (x) => x.data_dismissione, t: 'data' },
         { h: 'Note', v: (x) => x.note }, { h: 'Codice interno', v: (x) => x.codice }] }]);
     }
@@ -71,7 +75,7 @@ async function elenco(req, res, next) {
     const avc = (await query(`SELECT count(*)::int AS tot, count(*) FILTER (WHERE v.antivirus <> 'OK')::int AS problemi
       FROM v_controllo_antivirus v JOIN asset a ON a.codice = v.codice ${aw.length ? 'WHERE ' + aw.join(' AND ') : ''}`, ap)).rows[0];
     const rep = (await query('SELECT importato FROM antivirus_import ORDER BY id DESC LIMIT 1')).rows[0];
-    res.render('asset_lista', { ord, righe: r.rows, filtri: { q, stato, tipologia, azienda, uscita, av }, conteggi, avc, reportAv: rep && rep.importato, ...(await lookup()) });
+    res.render('asset_lista', { ord, righe: r.rows, filtri: { q, stato, tipologia, azienda, uscita, av, eta }, conteggi, avc, reportAv: rep && rep.importato, ...(await lookup()) });
   } catch (e) { next(e); }
 }
 router.get('/', elenco);

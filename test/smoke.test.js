@@ -348,3 +348,38 @@ test('elimina: asset (storico e SIM scollegate), persona (solo senza asset), SIM
   assert.strictEqual((await req('/movimenti?xlsx=1')).status, 200);
   await query(`DELETE FROM movimento WHERE oggetto LIKE 'Zz%' OR oggetto LIKE 'SIM-%'`);
 });
+
+test('età dell\'hardware: colonna, filtro per soglia, dashboard, Excel; il report antivirus aggiorna il sistema operativo', { skip }, async () => {
+  const { query } = require('../src/db');
+  const az = (await query('SELECT id FROM azienda ORDER BY id LIMIT 1')).rows[0].id;
+  const mk = async (modello, anni, host) => (await query(`INSERT INTO asset (tipologia, stato, azienda_id, modello, hostname, data_acquisto)
+    VALUES ('PC', 'Disponibile', $1, $2, $3, current_date - ($4::numeric * 365.25)::int) RETURNING id`, [az, modello, host, anni])).rows[0].id;
+  const vecchio = await mk('ZzVecchio', 7, 'ZZVECCHIO-PC'); const medio = await mk('ZzMedio', 5, 'ZZMEDIO-PC'); const nuovo = await mk('ZzNuovo', 1, 'ZZNUOVO-PC');
+  const ids = async (url) => [...(await (await req(url)).text()).matchAll(/href="\/asset\/(\d+)"/g)].map((m) => Number(m[1]));
+  try {
+    const sost = await ids('/asset?stato=Disponibile&eta=sost'); const att = await ids('/asset?stato=Disponibile&eta=att'); const tutti = await ids('/asset?stato=Disponibile');
+    assert.ok(sost.includes(vecchio) && !sost.includes(medio) && !sost.includes(nuovo), 'oltre 6 anni: solo il più vecchio');
+    assert.ok(att.includes(vecchio) && att.includes(medio) && !att.includes(nuovo), 'oltre 4 anni: vecchio e medio');
+    assert.ok(tutti.includes(nuovo));
+    assert.deepStrictEqual(await ids('/asset?stato=Disponibile&eta=boh'), tutti, 'valori non ammessi ignorati');
+    const html = await (await req('/asset?stato=Disponibile&q=ZzVecchio')).text();
+    assert.match(html, /class="eta eta-sost"[^>]*>7,0 anni/); assert.match(html, /name="eta"/);
+    assert.match(await (await req('/asset?stato=Disponibile&q=ZzMedio')).text(), /class="eta eta-att"/);
+    assert.match(await (await req('/asset?stato=Disponibile&q=ZzNuovo')).text(), /class="eta eta-ok"[^>]*>1,0 anni/);
+    assert.strictEqual((await req('/asset?xlsx=1&eta=att')).status, 200);
+    assert.strictEqual((await req('/asset?ord=eta&dir=desc')).status, 200);
+    assert.match(await (await req('/')).text(), /Età dei computer/);
+    assert.match(await (await req('/az/' + (await query('SELECT lower(nome) n FROM azienda WHERE id = $1', [az])).rows[0].n.replace(/[^a-z]/g, '-') + '/pc?eta=sost')).text(), /Cart|Parole|Persone|Dispositivo/);
+
+    // il report antivirus aggiorna il sistema operativo degli asset con lo stesso hostname (anche con maiuscole diverse)
+    const avPrima = (await query('SELECT max(id) m FROM antivirus_import')).rows[0].m;
+    const t = await csrf('/importa');
+    const r = await post('/importa/antivirus', { _csrf: t, csv: 'Nome,Stato,Ultimo rilevato,SO\nzzvecchio-pc,Protetto,10/08/2026 10:00,Windows 11 Pro\nZZMEDIO-PC,Protetto,10/08/2026 10:00,Windows 10 Pro' });
+    assert.match(await r.text(), /sistema operativo aggiornato su 2 asset/);
+    await query('DELETE FROM antivirus_import WHERE id > $1', [avPrima]);
+    const so = (await query('SELECT id, sistema_operativo FROM asset WHERE id = ANY($1)', [[vecchio, medio, nuovo]])).rows.reduce((m, x) => m.set(x.id, x.sistema_operativo), new Map());
+    assert.strictEqual(so.get(vecchio), 'Windows 11 Pro'); assert.strictEqual(so.get(medio), 'Windows 10 Pro'); assert.strictEqual(so.get(nuovo), null);
+  } finally {
+    await query('DELETE FROM asset WHERE id = ANY($1)', [[vecchio, medio, nuovo]]);
+  }
+});
