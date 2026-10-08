@@ -206,3 +206,5 @@ button.danger,.btn.danger{color:var(--bad);border-color:var(--bad-bg)}button.dan
 .eta{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:.74rem;font-weight:600;background:var(--surface2);color:var(--mut);white-space:nowrap}
 .eta-att{background:var(--warn-bg);color:var(--warn)}.eta-sost{background:var(--bad-bg);color:var(--bad)}
 .etar{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}.etar b{font-size:1.1rem}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px 14px;margin-top:10px}.fgrid label{display:flex;flex-direction:column;gap:3px;font-size:.82rem;font-weight:600;color:var(--mut)}
+.fgrid input,.fgrid select{font-weight:400;color:var(--fg)}.fdesc{font-size:.95rem}

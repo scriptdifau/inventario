@@ -11,6 +11,8 @@ const FORMATI = {
 };
 
 router.get('/', (req, res) => res.render('importa', { formati: FORMATI, esito: null }));
+router.use((req, res, next) => { res.locals.formati = FORMATI; next(); });
+router.use('/fattura', require('./fattura_import'));
 
 // esegue fn(client) in transazione; fn restituisce { ok, avvisi }
 async function transazione(fn) {

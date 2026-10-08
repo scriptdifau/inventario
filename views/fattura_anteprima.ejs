@@ -1,0 +1,37 @@
+<%- include('_head', {titolo: 'Importa fattura'}) %>
+<h1>Importa fattura · controlla e conferma</h1>
+<p class="mut">Letta da <%= b.formato === 'pdf' ? 'PDF' : 'XML' %><%= nome ? ' (' + nome + ')' : '' %>. Nulla è ancora salvato: correggi quello che serve e conferma.</p>
+<% if (avvisi.length) { %><div class="card" style="border-color:var(--warn)"><ul style="margin:0"><% avvisi.forEach(a => { %><li><%= a %></li><% }) %></ul></div><% } %>
+<form method="post" action="/importa/fattura/conferma">
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="formato" value="<%= b.formato %>"><input type="hidden" name="nome" value="<%= nome || '' %>">
+  <div class="card">
+    <h2 style="margin-top:0">Fattura</h2>
+    <div class="fgrid">
+      <%- include('_sel', {nome: 'fornitore_id', label: 'Fornitore (esistente)', opzioni: fornitori.map(f => ({v: f.id, l: f.nome})), valore: b.fornitoreId, vuoto: true}) %>
+      <label>…oppure nuovo fornitore<input name="fornitore_nome" value="<%= b.fornitoreNuovo %>" placeholder="nome breve, es. Effesistemi"></label>
+      <label>Numero<input name="numero" value="<%= b.numero %>" required></label>
+      <label>Data<input type="date" name="data" value="<%= b.data || '' %>"></label>
+      <%- include('_sel', {nome: 'azienda_id', label: 'Azienda (per i nuovi asset)', opzioni: aziende.map(a => ({v: a.id, l: a.nome})), valore: b.aziendaId, vuoto: true}) %>
+      <%- include('_sel', {nome: 'stato', label: 'Stato dei nuovi asset', opzioni: ['Disponibile', 'In esercizio', 'Da verificare'].map(t => ({v: t, l: t})), valore: 'Disponibile', vuoto: false}) %>
+    </div>
+    <p class="mut" style="margin-bottom:0"><%= b.fornitoreOriginale ? 'Nel documento: ' + b.fornitoreOriginale : '' %><%= b.piva ? ' · P.IVA ' + b.piva : '' %><%= b.cessionario ? ' · intestata a ' + b.cessionario : '' %><%= b.totale !== null ? ' · totale ' + euro(b.totale) + (b.formato === 'xml' ? ' (IVA inclusa)' : '') : '' %></p>
+    <% if (b.esistente) { %><p style="margin-bottom:0"><b>Questa fattura è già registrata</b> con <%= b.esistente.nAsset %> asset collegati.
+      <% if (b.esistente.nAsset > 0) { %><label style="flex-direction:row;gap:6px;display:flex;align-items:center;margin-top:6px"><input type="checkbox" name="forza" value="1"> Voglio comunque creare altri asset da questa fattura</label><% } %></p><% } %>
+  </div>
+  <h2>Righe</h2>
+  <p class="mut">Spunta cosa è un asset: per ogni riga puoi creare un asset nuovo (se la quantità è più di uno, ne crea altrettanti), collegarla a uno già presente oppure saltarla (spedizioni, canoni, servizi).</p>
+  <% righe.forEach((r, i) => { %><%- include('_fattura_riga', {i, r, tipologie}) %><% }) %>
+  <div id="altre"></div>
+  <input type="hidden" name="n" id="n" value="<%= righe.length %>">
+  <template id="modello"><%- include('_fattura_riga', {i: '__I__', r: {descrizione: '', azione: 'nuovo', tipologia: tipologie.includes('Altro') ? 'Altro' : tipologie[0], qta: 1}, tipologie}) %></template>
+  <p><button type="button" class="btn sec" id="aggiungi">+ Aggiungi riga a mano</button></p>
+  <p><button>Conferma e salva</button> <a class="btn sec" href="/importa">Annulla</a></p>
+</form>
+<script>
+document.getElementById('aggiungi').onclick = function () {
+  var n = document.getElementById('n'); var i = Number(n.value);
+  var h = document.getElementById('modello').innerHTML.split('__I__').join(String(i));
+  var d = document.createElement('div'); d.innerHTML = h; document.getElementById('altre').appendChild(d); n.value = i + 1;
+};
+</script>
+<%- include('_foot') %>

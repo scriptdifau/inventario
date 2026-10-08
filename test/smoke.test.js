@@ -383,3 +383,69 @@ test('età dell\'hardware: colonna, filtro per soglia, dashboard, Excel; il repo
     await query('DELETE FROM asset WHERE id = ANY($1)', [[vecchio, medio, nuovo]]);
   }
 });
+
+test('import fattura XML: anteprima (nulla salvato), conferma, nessun duplicato, collegamento per seriale', { skip }, async () => {
+  const { query } = require('../src/db');
+  const fs = require('fs');
+  const xml = fs.readFileSync(require('path').join(__dirname, 'fixtures', 'fattura.xml'), 'utf8');
+  const contaAsset = async () => (await query('SELECT count(*)::int n FROM asset')).rows[0].n;
+  const prima = await contaAsset(); const fornPrima = (await query('SELECT count(*)::int n FROM fornitore')).rows[0].n;
+  assert.match(await (await req('/importa')).text(), /Fattura di acquisto \(XML o PDF\)/);
+  let t = await csrf('/importa');
+  try {
+    // anteprima: fornitore riconosciuto (Effesistemi), azienda da "CART'ARMATA", righe proposte; non salva nulla
+    let r = await post('/importa/fattura/anteprima', { _csrf: t, formato: 'xml', nome: 'f.xml', testo: xml });
+    assert.strictEqual(r.status, 200);
+    let html = await r.text();
+    assert.match(html, /controlla e conferma/); assert.match(html, /ZZ-255\/2026/); assert.match(html, /name="azione_0"/);
+    assert.match(html, /<option value="\d+" selected>Effesistemi<\/option>/);
+    assert.match(html, /<option value="1" selected>Cart&#39;armata<\/option>/);
+    assert.match(html, /<option value="nuovo" selected>/); assert.match(html, /<option value="salta" selected>/); // portatile e telefono nuovi, spedizione saltata
+    assert.strictEqual(await contaAsset(), prima);
+    assert.strictEqual((await query(`SELECT count(*)::int n FROM fattura WHERE numero = 'ZZ-255/2026'`)).rows[0].n, 0);
+    // file non valido
+    assert.strictEqual((await post('/importa/fattura/anteprima', { _csrf: t, formato: 'xml', testo: '<html/>' })).status, 400);
+    assert.strictEqual((await post('/importa/fattura/anteprima', { _csrf: t, formato: 'pdf', testo: 'x' })).status, 400);
+    assert.strictEqual((await post('/importa/fattura/anteprima', { testo: xml })).status, 403);
+
+    // conferma come l'ha proposta l'anteprima: 2 portatili + 1 telefono (con seriale), spedizione saltata
+    const forn = (await query(`SELECT id FROM fornitore WHERE lower(nome) = 'effesistemi'`)).rows[0].id;
+    const corpo = { _csrf: t, formato: 'xml', fornitore_id: forn, fornitore_nome: '', numero: 'ZZ-255/2026', data: '2026-09-30', azienda_id: 1, stato: 'Disponibile', n: 3,
+      azione_0: 'nuovo', tipologia_0: 'PC', marca_0: 'HP', modello_0: 'Notebook HP ProBook 440 G6 14"', serial_0: '', importo_0: '700,00', qta_0: 2, descr_0: 'Notebook',
+      azione_1: 'nuovo', tipologia_1: 'Telefono', marca_1: 'Apple', modello_1: 'iPhone 15 128GB', serial_1: 'ZZIMEI1234567', importo_1: '700', qta_1: 1, descr_1: 'iPhone',
+      azione_2: 'salta', tipologia_2: 'Altro', qta_2: 1, descr_2: 'Spedizione' };
+    r = await post('/importa/fattura/conferma', corpo);
+    html = await r.text();
+    assert.strictEqual(r.status, 200); assert.match(html, /3 asset nuovi, 0 collegati/);
+    assert.strictEqual(await contaAsset(), prima + 3);
+    const as = (await query(`SELECT a.*, f.numero FROM asset a JOIN fattura f ON f.id = a.fattura_id WHERE f.numero = 'ZZ-255/2026' ORDER BY a.id`)).rows;
+    assert.strictEqual(as.length, 3);
+    assert.ok(as.every((x) => x.stato === 'Disponibile' && x.azienda_id === 1 && x.fornitore_id === forn && String(x.data_acquisto).includes('2026')));
+    assert.deepStrictEqual(as.map((x) => Number(x.importo)), [700, 700, 700]); assert.strictEqual(as[2].serial, 'ZZIMEI1234567');
+    // stessa fattura di nuovo: l'anteprima non propone nuovi asset (il telefono è riconosciuto dal seriale, gli altri saltati)
+    r = await post('/importa/fattura/anteprima', { _csrf: t, formato: 'xml', testo: xml }); html = await r.text();
+    assert.match(html, /già registrata/); assert.match(html, /<option value="collega" selected>/); assert.match(html, /Già presente: AST-/);
+    assert.ok(!/<option value="nuovo" selected>/.test(html.replace(/<template[\s\S]*?<\/template>/, '')), 'nessuna riga nuova proposta (la riga modello per "aggiungi" è esclusa)');
+    // e la conferma di righe "nuovo" sulla stessa fattura è rifiutata, a meno di forzare
+    r = await post('/importa/fattura/conferma', corpo);
+    assert.strictEqual(r.status, 400); assert.match(await r.text(), /già registrata/); assert.strictEqual(await contaAsset(), prima + 3);
+    // collegamento di un asset esistente a un'altra fattura
+    const lib = (await query(`INSERT INTO asset (tipologia, stato, azienda_id, modello) VALUES ('Altro', 'Disponibile', 1, 'Zz libero') RETURNING id, codice`)).rows[0];
+    r = await post('/importa/fattura/conferma', { _csrf: t, formato: 'xml', fornitore_id: forn, numero: 'ZZ-256', data: '2026-10-01', azienda_id: 1, stato: 'Disponibile', n: 1,
+      azione_0: 'collega', asset_0: lib.codice, importo_0: '55,5', qta_0: 1, descr_0: 'Accessorio' });
+    assert.match(await r.text(), /0 asset nuovi, 1 collegati/);
+    const dopo = (await query('SELECT fattura_id, importo, data_acquisto FROM asset WHERE id = $1', [lib.id])).rows[0];
+    assert.ok(dopo.fattura_id); assert.strictEqual(Number(dopo.importo), 55.5);
+    // validazioni
+    assert.strictEqual((await post('/importa/fattura/conferma', { _csrf: t, formato: 'xml', n: 0, numero: '' })).status, 400);
+    assert.strictEqual((await post('/importa/fattura/conferma', { _csrf: t, formato: 'xml', n: 1, numero: 'ZZ-9', azione_0: 'nuovo', tipologia_0: 'PC' })).status, 400); // nessun fornitore
+    assert.strictEqual(await contaAsset(), prima + 4);
+  } finally {
+    await query(`DELETE FROM asset WHERE fattura_id IN (SELECT id FROM fattura WHERE numero LIKE 'ZZ-%') OR modello = 'Zz libero'`);
+    await query(`DELETE FROM movimento WHERE oggetto LIKE '%Zz libero%'`);
+    await query(`DELETE FROM fattura WHERE numero LIKE 'ZZ-%'`);
+    await query(`DELETE FROM fornitore WHERE id > (SELECT coalesce(max(id), 0) FROM fornitore WHERE nome = 'Effesistemi') AND nome ILIKE 'zz%'`);
+  }
+  assert.strictEqual(await contaAsset(), prima);
+  assert.strictEqual((await query('SELECT count(*)::int n FROM fornitore')).rows[0].n, fornPrima);
+});
