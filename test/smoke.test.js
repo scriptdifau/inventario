@@ -31,7 +31,7 @@ test('nessuna pagina pubblica', { skip }, async () => {
 });
 
 test('pagine principali', { skip }, async () => {
-  for (const p of ['/', '/asset', '/asset/1', '/asset/1/modifica', '/asset/nuovo', '/persone', '/persone/1', '/sim', '/movimenti', '/antivirus'])
+  for (const p of ['/', '/asset', '/asset/1', '/asset/1/modifica', '/asset/nuovo', '/persone', '/persone/1', '/sim', '/movimenti', '/antivirus', '/cespiti', '/importa'])
     assert.strictEqual((await req(p)).status, 200, p);
   assert.strictEqual((await req('/asset/99999')).status, 404);
 });

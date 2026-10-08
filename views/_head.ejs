@@ -3,7 +3,7 @@
 <title><%= typeof titolo !== 'undefined' ? titolo + ' · ' : '' %>Inventario IT</title>
 <link rel="stylesheet" href="/static/style.css"></head><body>
 <nav>
-  <% [['/','Dashboard'],['/asset','Asset'],['/persone','Persone'],['/sim','SIM'],['/movimenti','Movimenti'],['/antivirus','Antivirus'],['/importa','Importa']].forEach(([h,l]) => { %>
+  <% [['/','Dashboard'],['/asset','Asset'],['/persone','Persone'],['/sim','SIM'],['/movimenti','Movimenti'],['/antivirus','Antivirus'],['/cespiti','Cespiti ante 2018'],['/importa','Importa']].forEach(([h,l]) => { %>
     <a href="<%= h %>" class="<%= (h === '/' ? path === '/' : path.startsWith(h)) ? 'on' : '' %>"><%= l %></a>
   <% }) %>
   <span class="sp"></span><span style="color:var(--mut)"><%= utente.email %></span>

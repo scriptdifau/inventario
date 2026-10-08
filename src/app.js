@@ -43,6 +43,7 @@ function creaApp() {
   app.use('/persone', require('./routes/persone'));
   app.use('/sim', require('./routes/sim'));
   app.use('/movimenti', require('./routes/movimenti'));
+  app.use('/cespiti', require('./routes/cespiti'));
   app.use('/importa', require('./routes/importa'));
 
   app.use((req, res) => res.status(404).render('errore', { messaggio: 'Pagina non trovata' }));

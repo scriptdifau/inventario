@@ -7,6 +7,7 @@
   "engines": { "node": ">=20" },
   "scripts": {
     "start": "node server.js",
+    "backup": "scripts/backup.sh",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
