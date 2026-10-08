@@ -31,7 +31,7 @@ test('nessuna pagina pubblica', { skip }, async () => {
 });
 
 test('pagine principali', { skip }, async () => {
-  for (const p of ['/', '/asset', '/asset/1', '/asset/1/modifica', '/asset/nuovo', '/persone', '/persone/1', '/sim', '/movimenti', '/cespiti', '/importa'])
+  for (const p of ['/', '/asset', '/asset/1', '/asset/1/modifica', '/asset/nuovo', '/persone', '/persone/1', '/movimenti', '/cespiti', '/importa', '/sim/nuova'])
     assert.strictEqual((await req(p)).status, 200, p);
   assert.strictEqual((await req('/asset/99999')).status, 404);
 });
@@ -114,18 +114,17 @@ test('export Excel: ogni vista, anche filtrata', { skip }, async () => {
   assert.ok(tutti > 50 && assegnati > 0 && assegnati < tutti, `${assegnati} < ${tutti}`);
   const html = await (await req('/asset?stato=Assegnato')).text();
   assert.match(html, /href="\/asset\?stato=Assegnato&amp;xlsx=1"/);          // il link conserva i filtri
-  for (const u of ['/persone', '/sim', '/movimenti', '/cespiti', '/']) assert.ok(await righe(u + (u === '/' ? '?xlsx=1' : '?xlsx=1')) >= 0, u);
+  for (const u of ['/persone', '/movimenti', '/cespiti', '/']) assert.ok(await righe(u + (u === '/' ? '?xlsx=1' : '?xlsx=1')) >= 0, u);
   assert.strictEqual(await righe('/cespiti?xlsx=1'), 23);
 });
 
-test('albero per azienda: pagine, filtri fissi, antivirus sotto PC/Server, SIM sotto Telefono, Excel', { skip }, async () => {
+test('albero per azienda: pagine, filtri fissi, antivirus e SIM come simboli, Excel', { skip }, async () => {
   const { query } = require('../src/db');
   const conta = async (url) => (await (await req(url)).text()).match(/(\d+) risultati/)?.[1];
   for (const u of ['/az/cart-armata', '/az/le-parole', '/az/cart-armata/pc', '/az/cart-armata/mac', '/az/cart-armata/telefono',
-    '/az/cart-armata/telefono/sim', '/az/le-parole/telefono/sim',
     '/az/cart-armata/persone', '/az/le-parole/persone']) assert.strictEqual((await req(u)).status, 200, u);
   // non esistono: azienda o tipologia inventate, antivirus sui Mac, SIM sui PC, tipologia che l'azienda non ha
-  for (const u of ['/az/boh', '/az/cart-armata/boh', '/az/cart-armata/pc/antivirus', '/antivirus', '/az/cart-armata/pc/sim', '/az/le-parole/mac'])
+  for (const u of ['/az/boh', '/az/cart-armata/boh', '/az/cart-armata/pc/antivirus', '/antivirus', '/sim', '/az/cart-armata/pc/sim', '/az/cart-armata/telefono/sim', '/az/le-parole/mac'])
     assert.strictEqual((await req(u)).status, 404, u);
 
   // i filtri sono imposti dal percorso: non si possono scavalcare dall'indirizzo
@@ -136,14 +135,6 @@ test('albero per azienda: pagine, filtri fissi, antivirus sotto PC/Server, SIM s
   // i numeri dell'albero coincidono con le liste
   const home = await (await req('/')).text();
   assert.match(home, new RegExp(`href="/az/cart-armata/pc"[^>]*>[\\s\\S]*?<span class="c">${pc}</span>`));
-  const sim = (await query(`SELECT count(*)::int n FROM sim s WHERE coalesce((SELECT a.azienda_id FROM asset a WHERE a.id = s.asset_id), s.azienda_id) = (SELECT id FROM azienda WHERE nome = 'Cart''armata')`)).rows[0].n;
-  assert.strictEqual(Number(await conta('/az/cart-armata/telefono/sim')), sim);
-  // nessuna SIM, persona o asset resta fuori dall'albero (tranne chi non ha proprio un'azienda)
-  const totSim = (await query('SELECT count(*)::int n FROM sim')).rows[0].n;
-  const sommaSim = Number(await conta('/az/cart-armata/telefono/sim')) + Number(await conta('/az/le-parole/telefono/sim'));
-  const orfane = (await query(`SELECT count(*)::int n FROM sim s WHERE coalesce((SELECT a.azienda_id FROM asset a WHERE a.id = s.asset_id), s.azienda_id) IS NULL`)).rows[0].n;
-  assert.strictEqual(sommaSim + orfane, totSim);
-
   // Excel: stessa selezione della pagina
   const xl = await req('/az/cart-armata/pc?xlsx=1');
   assert.match(xl.headers.get('content-disposition'), /asset-/);
@@ -155,7 +146,7 @@ test('albero per azienda: pagine, filtri fissi, antivirus sotto PC/Server, SIM s
 
 test('ordinamento: predefinito per persona (cognome), colonne ordinabili, valori non ammessi ignorati, Excel nello stesso ordine', { skip }, async () => {
   const { query } = require('../src/db');
-  const ids = async (url, classe = 'r-asset') => [...(await (await req(url)).text()).matchAll(new RegExp(`class="riga ${classe}" href="/(?:asset|sim)/(\\d+)`, 'g'))].map((m) => +m[1]);
+  const ids = async (url, classe = 'r-asset') => [...(await (await req(url)).text()).matchAll(new RegExp(`class="riga ${classe}" href="/asset/(\\d+)`, 'g'))].map((m) => +m[1]);
 
   // predefinito: per cognome della persona, chi non ha una persona in fondo
   const atteso = (await query(`SELECT a.id FROM asset a JOIN stato_asset s ON s.nome = a.stato LEFT JOIN persona p ON p.id = a.persona_id
@@ -193,7 +184,6 @@ test('ordinamento: predefinito per persona (cognome), colonne ordinabili, valori
   const html = await (await req('/az/cart-armata/pc?ord=importo&dir=asc&stato=Assegnato')).text();
   assert.match(html, /href="\/az\/cart-armata\/pc\?ord=importo&amp;dir=desc&amp;stato=Assegnato"/);   // clic sulla colonna attiva: inverte
   assert.match(html, /<b>▲<\/b>/);
-  const sim = await ids('/sim?ord=persona&dir=asc', 'r-sim'); assert.strictEqual(sim.length, 26);
 
   // Excel nello stesso ordine della pagina
   const xl = await req('/asset?ord=importo&dir=desc&xlsx=1');
@@ -204,7 +194,7 @@ test('ordinamento: predefinito per persona (cognome), colonne ordinabili, valori
 
 test('il codice interno AST non si vede; si usa il cespite; antivirus come simbolo e non più come pagina', { skip }, async () => {
   const { query } = require('../src/db');
-  for (const u of ['/', '/asset', '/az/cart-armata', '/az/cart-armata/pc', '/az/cart-armata/telefono', '/az/cart-armata/telefono/sim', '/az/cart-armata/persone', '/persone/1', '/movimenti', '/sim', '/asset/1', '/asset/1/modifica']) {
+  for (const u of ['/', '/asset', '/az/cart-armata', '/az/cart-armata/pc', '/az/cart-armata/telefono', '/az/cart-armata/persone', '/persone/1', '/movimenti', '/sim', '/asset/1', '/asset/1/modifica']) {
     const html = await (await req(u)).text();
     const visibile = html.replace(/<(textarea|option)[^>]*>[\s\S]*?<\/\1>/g, '').replace(/<div style="white-space:pre-wrap">[\s\S]*?<\/div>/g, ''); // note libere e menu: testo degli utenti
     assert.doesNotMatch(visibile, /AST-\d{3}/, `${u} mostra un codice AST`);
@@ -235,4 +225,56 @@ test('il codice interno AST non si vede; si usa il cespite; antivirus come simbo
   // la pagina antivirus non c'è più, né nel menu
   assert.strictEqual((await req('/antivirus')).status, 404);
   assert.doesNotMatch(await (await req('/')).text(), /href="\/antivirus|\/antivirus"/);
+});
+
+
+test('SIM come simbolo sul telefono, dettaglio nella scheda, niente pagina SIM; SIM senza telefono ritrovabili', { skip }, async () => {
+  const { query } = require('../src/db');
+  // la pagina e le voci di menu non ci sono più
+  assert.strictEqual((await req('/sim')).status, 404);
+  assert.strictEqual((await req('/az/cart-armata/telefono/sim')).status, 404);
+  const home = await (await req('/')).text();
+  assert.doesNotMatch(home, /href="\/sim"|Tutte le SIM|\/telefono\/sim/);
+
+  // un simbolo per ogni telefono di Cart'armata che ha una SIM
+  const html = await (await req('/az/cart-armata/telefono')).text();
+  const righe = html.split('class="riga r-asset"').slice(1).map((r) => r.split('class="riga')[0]);
+  const conSim = (await query(`SELECT count(*)::int n FROM asset a WHERE a.tipologia = 'Telefono' AND a.azienda_id = (SELECT id FROM azienda WHERE nome = 'Cart''armata')
+    AND NOT (SELECT fuori FROM stato_asset WHERE nome = a.stato) AND EXISTS (SELECT 1 FROM sim s WHERE s.asset_id = a.id)`)).rows[0].n;
+  assert.ok(conSim > 5);
+  assert.strictEqual(righe.filter((r) => r.includes('class="sim-ico')).length, conSim);
+
+  // la scheda del telefono mostra il dettaglio della SIM
+  const t = (await query(`SELECT a.id, s.numero, s.operatore, s.piano FROM asset a JOIN sim s ON s.asset_id = a.id WHERE s.operatore IS NOT NULL AND s.piano IS NOT NULL ORDER BY a.id LIMIT 1`)).rows[0];
+  const scheda = await (await req(`/asset/${t.id}`)).text();
+  assert.match(scheda, /<h2>SIM /);
+  assert.ok(scheda.includes(t.numero) && scheda.includes(t.operatore) && scheda.includes(t.piano));
+  assert.match(scheda, new RegExp(`href="/sim/nuova\\?asset_id=${t.id}"`));
+  // si trova il telefono dal numero della SIM
+  assert.match(await (await req(`/asset?q=${t.numero}`)).text(), new RegExp(`href="/asset/${t.id}"`));
+
+  // le SIM senza telefono stanno sulla pagina Telefono dell'azienda
+  const libere = (await query(`SELECT count(*)::int n FROM sim WHERE asset_id IS NULL AND azienda_id = (SELECT id FROM azienda WHERE nome = 'Cart''armata')`)).rows[0].n;
+  assert.ok(libere > 0);
+  assert.match(html, new RegExp(`SIM non montate su un telefono <span class="mut">\\(${libere}\\)`));
+  const nessuna = await (await req('/az/le-parole/telefono')).text();
+  assert.doesNotMatch(nessuna, /SIM non montate/);
+
+  // il modulo: senza telefono né azienda si rifiuta; con il telefono si torna alla sua scheda
+  const tok = await csrf(`/sim/nuova?asset_id=${t.id}`);
+  const rifiuto = await post('/sim/nuova', { _csrf: tok, numero: '3000000000', stato: 'Attiva' });
+  assert.strictEqual(rifiuto.status, 400);
+  assert.match(await rifiuto.text(), /telefono in cui è montata oppure l(?:'|&#39;)azienda/);
+  const ok = await post('/sim/nuova', { _csrf: tok, numero: '3000000001', stato: 'Attiva', asset_id: String(t.id) });
+  assert.strictEqual(ok.status, 302); assert.strictEqual(ok.headers.get('location'), `/asset/${t.id}`);
+  await query(`DELETE FROM sim WHERE numero = '3000000001'`);
+  // SIM senza telefono ma con azienda: si torna alla pagina Telefono dell'azienda
+  const az = (await query(`SELECT id FROM azienda WHERE nome = 'Le parole'`)).rows[0].id;
+  const ok2 = await post('/sim/nuova', { _csrf: tok, numero: '3000000002', stato: 'Attiva', azienda_id: String(az) });
+  assert.strictEqual(ok2.headers.get('location'), '/az/le-parole/telefono');
+  assert.match(await (await req('/az/le-parole/telefono')).text(), /SIM non montate su un telefono/);
+  await query(`DELETE FROM sim WHERE numero = '3000000002'`);
+
+  // l'Excel degli asset porta i dati della SIM
+  assert.strictEqual((await req('/az/cart-armata/telefono?xlsx=1')).status, 200);
 });

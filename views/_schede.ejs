@@ -1,2 +1,0 @@
-<% if (ctx && ctx.tabs && ctx.tabs.length) { %><div class="schede"><% ctx.tabs.forEach(t => { %>
-  <a class="<%= t.on ? 'on' : '' %>" href="<%= t.href %>"><%= t.label %><% if (t.n !== null && t.n !== undefined) { %> <span class="c <%= t.allarme ? 'al' : '' %>"><%= t.n %></span><% } %></a><% }) %></div><% } %>

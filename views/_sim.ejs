@@ -1,0 +1,3 @@
+<%# simbolo SIM sulla riga del telefono: blu = attiva, giallo = sospesa/da verificare, grigio = cessata %>
+<% const k = stato === 'Attiva' ? 'sim-ok' : stato === 'Cessata' ? 'sim-no' : 'sim-dv';
+   const t = 'SIM ' + (numero || 'senza numero') + [operatore, piano].filter(Boolean).map((x) => ' · ' + x).join('') + ' (' + stato.toLowerCase() + ')'; %><span class="sim-ico <%= k %>" title="<%= t %>" aria-label="<%= t %>"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><rect x="10" y="11" width="5" height="6" rx="1"/></svg></span>

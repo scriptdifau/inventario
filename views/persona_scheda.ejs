@@ -14,7 +14,7 @@
 <% }) %></div><% } else { %><div class="card vuoto">Nessun asset assegnato.</div><% } %>
 <h2>SIM</h2>
 <% if (sim.length) { %><div class="righe"><% sim.forEach(s => { %>
-  <div class="riga" style="grid-template-columns:44px minmax(0,1fr) auto"><span class="tondo"><%- include('_icon', {tipo: 'SIM'}) %></span>
-    <span><span class="t"><%= s.numero %></span><br><span class="s"><%= s.codice %> · <%= s.operatore %></span></span><%- include('_badge', {stato: s.stato}) %></div>
+  <a class="riga" style="grid-template-columns:44px minmax(0,1fr) auto" href="<%= s.asset_id ? '/asset/' + s.asset_id : '/sim/' + s.id + '/modifica' %>"><span class="tondo"><%- include('_icon', {tipo: 'SIM'}) %></span>
+    <span><span class="t"><%= s.numero || 'senza numero' %></span><br><span class="s"><%= s.operatore %><%= s.asset_id ? ' · vedi il telefono' : '' %></span></span><%- include('_badge', {stato: s.stato}) %></a>
 <% }) %></div><% } else { %><div class="card vuoto">Nessuna SIM.</div><% } %>
 <%- include('_foot') %>

@@ -71,7 +71,7 @@ router.get('/:id(\\d+)', async (req, res, next) => {
       query(`SELECT v.id, v.tipologia, v.marca, v.modello, v.stato, v.hostname, v.cespite, av.antivirus AS av_stato, av.ultimo_rilevato AS av_visto
              FROM v_asset v JOIN asset a ON a.id = v.id LEFT JOIN v_controllo_antivirus av ON av.codice = v.codice
              WHERE a.persona_id = $1 AND NOT v.fuori ORDER BY v.id`, [req.params.id]),
-      query('SELECT id, codice, numero, stato, operatore FROM sim WHERE persona_id = $1 ORDER BY id', [req.params.id]),
+      query(`SELECT s.id, s.numero, s.stato, s.operatore, s.asset_id FROM sim s WHERE s.persona_id = $1 ORDER BY (s.stato = 'Cessata'), s.id`, [req.params.id]),
     ]);
     res.render('persona_scheda', { p: p.rows[0], asset: asset.rows, sim: sim.rows });
   } catch (e) { next(e); }

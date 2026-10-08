@@ -3,7 +3,6 @@
 <%- include('_briciole') %>
 <div class="titolo"><h1><%= ctx ? ctx.titolo : 'Asset' %></h1><span class="mut"><%= righe.length %> risultati</span><span class="sp"></span>
   <a class="btn sec sm" href="<%= xlsUrl %>">⬇ Scarica Excel</a><a class="btn sm" href="/asset/nuovo<%= ctx && ctx.tip ? '?azienda_id=' + ctx.az.id + '&tipologia=' + encodeURIComponent(ctx.tip.nome) : '' %>">+ Nuovo asset</a></div>
-<%- include('_schede') %>
 
 <div class="chips">
   <a class="chip <%= !filtri.stato && !filtri.av ? 'on' : '' %>" href="<%= urlCon({stato: '', av: ''}) %>">Tutti</a>
@@ -13,7 +12,7 @@
 <% if (avc && avc.tot) { %><p class="mut" style="margin:-4px 0 12px;font-size:.82rem">Antivirus: <span class="av-ok"><%- include('_av', {stato: 'OK'}) %></span> attivo · <span class="av-dv"><%- include('_av', {stato: 'Da verificare'}) %></span> da verificare · <span class="av-no"><%- include('_av', {stato: 'Mancante'}) %></span> assente<%= reportAv ? ' — ultimo report del ' + data(reportAv) : '' %></p><% } %>
 
 <form class="filtri" method="get">
-  <label class="cerca">Cerca<input name="q" value="<%= filtri.q %>" placeholder="cespite, persona, modello, serial, hostname…"></label>
+  <label class="cerca">Cerca<input name="q" value="<%= filtri.q %>" placeholder="cespite, persona, modello, serial, hostname, numero SIM…"></label>
   <input type="hidden" name="stato" value="<%= filtri.stato %>"><input type="hidden" name="av" value="<%= filtri.av %>">
   <% if (ord.esplicito) { %><input type="hidden" name="ord" value="<%= ord.chiave %>"><input type="hidden" name="dir" value="<%= ord.dir %>"><% } %>
   <% if (!fisso('tipologia')) { %><%- include('_sel', {nome:'tipologia', label:'Tipologia', opzioni: tipologie.map(t=>({v:t,l:t})), valore: filtri.tipologia, vuoto:true}) %><% } %>
@@ -30,7 +29,7 @@
 <% righe.forEach(r => { %>
   <a class="riga r-asset" href="/asset/<%= r.id %>">
     <span class="tondo"><%- include('_icon', {tipo: r.tipologia}) %></span>
-    <span><span class="t"><%= nomeAsset(r) %></span><% if (r.av_stato) { %><%- include('_av', {stato: r.av_stato, visto: r.av_visto}) %><% } %><br><span class="s"><%= [cesp(r.cespite), r.tipologia, r.hostname].filter(Boolean).join(' · ') %></span></span>
+    <span><span class="t"><%= nomeAsset(r) %></span><% if (r.av_stato) { %><%- include('_av', {stato: r.av_stato, visto: r.av_visto}) %><% } %><% if (r.sim_stato) { %><%- include('_sim', {stato: r.sim_stato, numero: r.sim_numero, operatore: r.sim_operatore, piano: r.sim_piano}) %><% } %><br><span class="s"><%= [cesp(r.cespite), r.tipologia, r.hostname].filter(Boolean).join(' · ') %></span></span>
     <span class="chi"><% if (r.assegnato_a) { %><%- include('_avatar', {nome: r.assegnato_a}) %><span class="nome"><%= r.assegnato_a %></span><% } else { %><span class="mut">—</span><% } %></span>
     <span><%- include('_badge', {stato: r.stato}) %></span>
     <span class="s"><%= r.azienda %></span>
@@ -38,4 +37,12 @@
   </a>
 <% }) %>
 </div>
+<% if (typeof simLibere !== 'undefined' && simLibere.length) { %>
+<details class="card" style="margin-top:18px"><summary style="cursor:pointer;font-weight:600">SIM non montate su un telefono <span class="mut">(<%= simLibere.length %>)</span></summary>
+  <div style="margin-top:12px">
+  <% simLibere.forEach(s => { %><a class="riga" style="grid-template-columns:44px minmax(0,1fr) auto;padding-left:0;padding-right:0;color:inherit" href="/sim/<%= s.id %>/modifica"><span class="tondo"><%- include('_icon', {tipo: 'SIM'}) %></span>
+    <span><span class="t"><%= s.numero || 'senza numero' %></span><br><span class="s"><%= [s.operatore, s.piano, s.note].filter(Boolean).join(' · ') %></span></span><%- include('_badge', {stato: s.stato}) %></a><% }) %>
+  </div><p class="mut" style="margin:10px 0 0;font-size:.85rem">Sono SIM dati o di scorta. Per abbinarne una a un telefono, aprila e scegli il telefono.</p>
+</details>
+<% } %>
 <%- include('_foot') %>

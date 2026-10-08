@@ -190,3 +190,10 @@ th .ordc{color:inherit}th .ordc:hover{color:var(--fg);text-decoration:none}th .o
 .av-ico{display:inline-flex;vertical-align:-3px;margin-left:6px}.av-ok{color:var(--ok)}.av-dv{color:var(--warn)}.av-no{color:var(--bad)}
 .chip-av .av-ico{margin:0 2px 0 0;vertical-align:-3px}.chip.on .av-ico{color:inherit}
 .chip{white-space:nowrap}
+
+/* simbolo SIM e schede SIM */
+.sim-ico{display:inline-flex;vertical-align:-3px;margin-left:6px}.sim-ok{color:var(--info)}.sim-dv{color:var(--warn)}.sim-no{color:var(--mut);opacity:.7}
+.simbox{border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:12px}.simbox:first-of-type{margin-top:0}
+.simbox .testa-sim{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}.simbox .num{font-size:1.15rem;font-weight:700;letter-spacing:.01em}
+.card h2 .dx{margin-left:auto}
+.simbox .dx{margin-left:auto}

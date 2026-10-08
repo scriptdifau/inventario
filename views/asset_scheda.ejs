@@ -23,8 +23,17 @@
   </div></section>
 </div>
 <% if (a.note) { %><section class="card"><h2>Note</h2><div style="white-space:pre-wrap"><%= a.note %></div></section><% } %>
-<% if (sim.length) { %><section class="card"><h2>SIM collegate</h2>
-  <% sim.forEach(s => { %><div class="tip" style="grid-template-columns:28px 1fr auto"><span class="tondo"><%- include('_icon', {tipo: 'SIM', dim: 16}) %></span><span><b><%= s.codice %></b> <span class="mut"><%= s.numero %></span></span><%- include('_badge', {stato: s.stato}) %></div><% }) %></section><% } %>
+<% if (sim.length || ['Telefono', 'Tablet'].includes(a.tipologia)) { %><section class="card"><h2>SIM <a class="btn sec sm dx" href="/sim/nuova?asset_id=<%= a.id %>">+ Aggiungi SIM</a></h2>
+  <% if (!sim.length) { %><div class="mut">Nessuna SIM in questo dispositivo.</div><% } %>
+  <% sim.forEach(s => { %><div class="simbox">
+    <div class="testa-sim"><span class="tondo"><%- include('_icon', {tipo: 'SIM'}) %></span><span class="num"><%= s.numero || 'senza numero' %></span><%- include('_badge', {stato: s.stato}) %><a class="btn sec sm dx" href="/sim/<%= s.id %>/modifica">Modifica</a></div>
+    <div class="fatti">
+    <% [['Operatore', s.operatore], ['Piano', s.piano], ['Costo mensile', s.costo_mensile ? euro(s.costo_mensile) : ''], ['Giga del telefono', s.giga_telefono],
+        ['Intestata a', s.persona && s.persona !== a.assegnato_a ? s.persona : ''], ['Saponetta', s.saponetta === null ? '' : (s.saponetta ? 'Sì' : 'No') + (s.giga_saponetta ? ' · ' + s.giga_saponetta : '')]].forEach(([k, v]) => { if (v) { %>
+      <div><span><%= k %></span><b><%= v %></b></div><% } }) %>
+    </div><% if (s.note) { %><div class="mut" style="margin-top:10px;white-space:pre-wrap"><%= s.note %></div><% } %>
+  </div><% }) %>
+</section><% } %>
 
 <section class="card"><h2>Storico</h2>
   <% if (!mov.length) { %><div class="mut">Nessun movimento registrato.</div><% } %>
