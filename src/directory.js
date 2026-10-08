@@ -9,7 +9,10 @@ const URL = 'https://admin.googleapis.com/admin/directory/v1/users';
 
 function chiave(env = process.env) {
   let t = env.GOOGLE_SA_KEY;
-  if (!t && env.GOOGLE_SA_KEY_FILE) t = fs.readFileSync(env.GOOGLE_SA_KEY_FILE, 'utf8');
+  if (!t && env.GOOGLE_SA_KEY_FILE) {
+    t = fs.readFileSync(env.GOOGLE_SA_KEY_FILE, 'utf8');
+    if (!t.trim()) throw new Error(`Il file della chiave è vuoto (${env.GOOGLE_SA_KEY_FILE}): va ricaricato`);
+  }
   if (!t) return null;
   t = t.trim();
   if (!t.startsWith('{')) t = Buffer.from(t, 'base64').toString('utf8');

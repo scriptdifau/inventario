@@ -121,7 +121,7 @@ router.post('/workspace-api', async (req, res, next) => {
     if (!configurata()) return risposta(res, 'workspace', { errore: 'Sincronizzazione automatica non configurata: mancano GOOGLE_SA_KEY (o GOOGLE_SA_KEY_FILE) e WORKSPACE_ADMIN_EMAIL.' });
     let letti;
     try { letti = await utentiWorkspace(); } catch (e) {
-      return risposta(res, 'workspace', { errore: 'Google ha rifiutato la richiesta: ' + (e.message || e) });
+      return risposta(res, 'workspace', { errore: 'Sincronizzazione non riuscita: ' + (e.message || e) });
     }
     risposta(res, 'workspace', await sincronizza(letti.utenti, letti.avvisi));
   } catch (e) { next(e); }
