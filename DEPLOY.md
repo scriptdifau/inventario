@@ -10,10 +10,10 @@ Chiedi al supporto SiteGround (o controlla in Site Tools) e annota la risposta:
 | Requisito | Perché serve | Esito |
 |---|---|---|
 | **PostgreSQL** (non solo MySQL) sul piano | l'app e lo schema sono PostgreSQL (trigger, viste, `GENERATED`) | ☐ |
-| **Node.js ≥ 20.12** eseguibile (gestore app in Site Tools o via SSH) | `package.json` richiede ≥ 20.12 | ☐ |
+| **Node.js ≥ 20.12** (gestore app in Site Tools) | `package.json` richiede ≥ 20.12 | ☐ |
 | **Processo persistente** (l'app resta in esecuzione, riavvio automatico) | l'app è un server, non uno script | ☐ |
 | **Reverse proxy / porta** verso un dominio HTTPS | il login Google richiede HTTPS | ☐ |
-| **SSH** + **Cron Jobs** | deploy e backup notturno | ☐ |
+| **SSH** + **Cron Jobs** | backup notturno e diagnosi (il deploy è automatico) | ☐ |
 | `pg_dump` disponibile | `scripts/backup.sh` | ☐ |
 
 Se PostgreSQL o un processo Node persistente non sono disponibili sul piano condiviso, le alternative sono: database
@@ -42,36 +42,36 @@ Sono i dati del foglio al 08/10/2026. Se prima del passaggio il foglio cambia, r
 con `python3 -I importa.py inventario.xlsx cartella` e ricarica **su un database vuoto** (lo schema non è idempotente).
 Se il database è esterno, aggiungi `?sslmode=require` a `DATABASE_URL`.
 
-## 4. Codice e configurazione
-```bash
-ssh utente@server
-git clone https://github.com/scriptdifau/inventario.git && cd inventario
-npm ci --omit=dev
-cp .env.example .env && chmod 600 .env
-```
-Compila `.env` (mai nel repository):
+## 4. Codice: deploy automatico da GitHub (Site Tools → Node.js)
+SiteGround collega il repository e rifà il deploy a ogni push sul branch scelto.
+1. *Node.js → Deployment*: metodo **GitHub**, repository `scriptdifau/inventario`, **branch `main`**, deployment automatico **attivo**.
+2. Preset framework **Express**, gestore pacchetti **npm**, **Node ≥ 20.12** (consigliata la più recente disponibile), comando di build e directory di output vuoti.
+3. Il codice finisce in una cartella nascosta, es. `~/www/DOMINIO/public_html/.nodeapp/<id>-origin/app_source`
+   (`ls -a` per vederla). Ogni deploy può ricrearla: **non** metterci file a mano.
+
+## 5. Configurazione (variabili d'ambiente) e avvio
+Il `.env` non sta su GitHub, quindi un deploy che ricrea la cartella lo perde. **Imposta le variabili nel pannello**
+(*Node.js → variabili d'ambiente*, se presente): sopravvivono ai deploy e hanno la precedenza sul file.
 ```
 NODE_ENV=production
-DATABASE_URL=postgres://utente:password@host:5432/inventario
-PORT=<porta assegnata dal gestore app>
-BASE_URL=https://inventario.terre.it
+BASE_URL=https://inventario.terre.it        # l'indirizzo pubblico, senza / finale
 SESSION_SECRET=<openssl rand -hex 32>
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
+DATABASE_URL=postgres://utente:password@host:5432/nomedb
 ```
-In produzione l'app rifiuta di partire senza `SESSION_SECRET`; **non** impostare `DEV_LOGIN_EMAIL`.
-
-## 5. Avvio e persistenza
-- Con il gestore Node.js di Site Tools (se presente): radice app = cartella del repo, file di avvio `server.js`.
-- Altrimenti da SSH con un process manager (es. `pm2 start server.js --name inventario && pm2 save`, più avvio al boot
-  se consentito dal piano).
-- Controllo: `curl https://inventario.terre.it/healthz` → `ok`.
+Non impostare `DEV_LOGIN_EMAIL`; in produzione l'app non parte senza `SESSION_SECRET`. In alternativa un `.env` nella
+cartella dell'app (formato `CHIAVE=valore`), con il rischio di perderlo al deploy.
+- All'avvio l'app scrive nel log `.env caricato (…), Node vXX` oppure `.env NON trovato`. Se le variabili sono nel pannello
+  la seconda riga è normale.
+- Riavvia dal pannello dopo ogni modifica alle variabili. Controllo: `https://DOMINIO/healthz` → `ok`.
 
 ## 6. Prima verifica funzionale
 1. Apri l'URL: deve rimandarti al login Google (nessuna pagina pubblica).
 2. Accedi con un account per **ciascuno dei tre domini**: se uno viene rifiutato, controlla il messaggio e il claim `hd`
    (l'app richiede che sia nell'elenco dei domini).
 3. Un account `@gmail.com` deve essere rifiutato.
+   Se il login finisce in "Richiesta di login non valida": usa `https://` e parti sempre da `/auth/login`.
 4. Dashboard: importi Cart'armata 72.464,16 €, Le parole 5.257,97 €; 80 asset, 46 persone.
 5. Modifica un asset di prova (stato/assegnatario) e verifica il movimento; poi ripristinalo.
 
@@ -83,26 +83,9 @@ Poi: (a) prova un ripristino su un database di prova (`zcat file.sql.gz | psql n
 server (es. Drive): un backup sullo stesso server non protegge dalla perdita del server.
 
 ## 8. Aggiornamenti
-Manuale: `git pull && npm ci --omit=dev` e riavvio dell'app. Le modifiche allo schema sono in `migrazioni/`
-(applicale con `psql -f`, in ordine, prima del riavvio).
-
-Deploy automatico (da attivare quando la sezione 0 è chiara): workflow GitHub Actions su push a `main` che entra
-in SSH ed esegue i comandi sopra. Servono i secret `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KEY` (chiave dedicata, solo
-per questa cartella).
-```yaml
-# .github/workflows/deploy.yml
-on: { push: { branches: [main] } }
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_KEY }}
-          script: cd ~/inventario && git pull --ff-only && npm ci --omit=dev && pm2 restart inventario
-```
+Si fanno da soli: ogni merge su `main` avvia un deploy. Controlla in *Node.js → Deployment* che sia completato e
+riavvia l'app se serve. Le modifiche allo schema sono in `migrazioni/`: applicale con `psql -f`, in ordine, **prima** di
+unire la modifica che le usa.
 
 ## 9. Dopo il passaggio
 Il foglio resta come riferimento (permessi da definire). Importa regolarmente il report antivirus e l'export utenti
