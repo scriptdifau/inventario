@@ -3,7 +3,7 @@ const { pool } = require('../db');
 const { parseCsv, col, parseData } = require('../csv');
 
 const FORMATI = {
-  antivirus: 'Dispositivo, Stato, Utente in uso, Sistema operativo, Ultimo rilevato, IP locale, MAC',
+  antivirus: 'export della console antivirus: Nome (o Dispositivo), Stato, Ultimo rilevato, Utente in uso, SO, Indirizzo IP locale, Indirizzo MAC',
   fatture: 'Fornitore, Numero, Data, Asset (codici AST-xxx separati da spazio, ; o |)',
   workspace: 'Export utenti della console Admin: First Name, Last Name, Email Address, Status',
 };
@@ -29,15 +29,15 @@ router.post('/antivirus', async (req, res, next) => {
     const righe = parseCsv(req.body.csv);
     const avvisi = []; const visti = new Set(); const dati = [];
     righe.forEach((r, i) => {
-      const disp = col(r, 'Dispositivo', 'Device', 'Nome dispositivo');
+      const disp = col(r, 'Dispositivo', 'Nome', 'Device', 'Nome dispositivo');
       if (!disp) { avvisi.push(`Riga ${i + 2}: dispositivo mancante, saltata`); return; }
       if (visti.has(disp.toUpperCase())) { avvisi.push(`Riga ${i + 2}: ${disp} doppio, tenuta la prima`); return; }
       visti.add(disp.toUpperCase());
       const raw = col(r, 'Ultimo rilevato', 'Last seen');
       const ultimo = parseData(raw, 'mdy');   // il report esporta mm/gg/aaaa
       if (raw && !ultimo) avvisi.push(`Riga ${i + 2}: data non riconosciuta (${raw})`);
-      dati.push([disp, col(r, 'Stato', 'Status'), col(r, 'Utente in uso', 'Utente'), col(r, 'Sistema operativo', 'OS'), ultimo,
-        col(r, 'IP locale', 'IP'), col(r, 'MAC')]);
+      dati.push([disp, col(r, 'Stato', 'Status'), col(r, 'Utente in uso', 'Utente'), col(r, 'Sistema operativo', 'SO', 'OS'), ultimo,
+        col(r, 'IP locale', 'Indirizzo IP locale', 'IP'), col(r, 'MAC', 'Indirizzo MAC')]);
     });
     if (!dati.length) return risposta(res.status(400), 'antivirus', { errore: 'Nessun dispositivo riconosciuto nel CSV.', avvisi });
     const max = dati.map((d) => d[4]).filter(Boolean).sort().pop() || null;

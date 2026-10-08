@@ -68,6 +68,12 @@ test('import CSV: antivirus, fatture, workspace', { skip }, async () => {
   assert.strictEqual(r.status, 200);
   assert.match(await r.text(), /1 dispositivi importati/);
   await query('DELETE FROM antivirus_import WHERE id > $1', [avPrima]);
+  // intestazioni dell'export reale della console (Nome, SO, Indirizzo IP locale…)
+  r = await post('/importa/antivirus', { _csrf: t, csv: 'Nome,Stato,Ultimo rilevato,Utente in uso,SO,Indirizzo IP locale,Indirizzo MAC\nPC-X,Protetto,09/16/2026 09:53,u,Windows 11,10.0.0.1,AA' });
+  assert.match(await r.text(), /1 dispositivi importati/);
+  const d = (await query('SELECT * FROM antivirus_dispositivo WHERE import_id > $1', [avPrima])).rows[0];
+  assert.strictEqual(d.sistema_operativo, 'Windows 11'); assert.strictEqual(d.ip_locale, '10.0.0.1');
+  await query('DELETE FROM antivirus_import WHERE id > $1', [avPrima]);
   // fatture + workspace dentro una verifica non distruttiva: CSV vuoto/invalidi
   r = await post('/importa/fatture', { _csrf: t, csv: 'Fornitore,Numero,Data,Asset\nZZ Test,9999,08/10/2026,AST-999' });
   assert.match(await r.text(), /AST-999 non esiste/);
