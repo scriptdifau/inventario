@@ -1,8 +1,14 @@
 <%- include('_head', {titolo: 'Importa'}) %>
-<h1>Importa CSV</h1>
+<h1>Importa e sincronizza</h1>
 <% if (esito) { %><div class="card" style="border-color:<%= esito.errore ? 'var(--bad)' : 'var(--ok)' %>">
   <b><%= esito.errore || esito.riepilogo %></b>
   <% if (esito.avvisi && esito.avvisi.length) { %><ul><% esito.avvisi.forEach(a => { %><li><%= a %></li><% }) %></ul><% } %></div><% } %>
+<form method="post" action="/importa/workspace-api" class="card">
+  <h2 style="margin-top:0">Sincronizza con Google Workspace</h2>
+  <p style="color:var(--mut)">Legge gli utenti direttamente da Google (Directory API) e applica le stesse regole dell'import CSV qui sotto. Si può lanciare anche da cron con <code>scripts/sincronizza-workspace.js</code>.</p>
+  <input type="hidden" name="_csrf" value="<%= csrf %>">
+  <p><button>Sincronizza ora</button></p>
+</form>
 <% [['antivirus','Report antivirus','Ogni upload aggiunge un nuovo report; il controllo usa l\'ultimo.'],
     ['fatture','Fatture','Crea le fatture mancanti (fornitore + numero + data) e le collega agli asset indicati.'],
     ['workspace','Utenti Google Workspace','Abbina per nomecognome dell\'email (qualsiasi dominio), aggiorna lo stato Workspace, crea le persone nuove e segnala chi non c\'è più. Non cambia lo stato Attivo/Cessato.']].forEach(([k, t, d]) => { %>
