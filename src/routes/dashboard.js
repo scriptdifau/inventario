@@ -12,8 +12,8 @@ router.get('/', async (req, res, next) => {
       query('SELECT azienda, anno, n_asset, valore FROM v_acquisti_per_anno ORDER BY anno DESC, azienda'),
       query(`SELECT antivirus, count(*)::int AS n FROM v_controllo_antivirus GROUP BY antivirus ORDER BY antivirus`),
       query(`SELECT id, tipologia, assegnato_a, marca, modello, cespite FROM v_asset_vivi WHERE stato = 'Da verificare' ORDER BY id`),
-      query(`SELECT m.data, m.tipo, a.id AS asset_id, a.tipologia, a.marca, a.modello, c.numero AS cespite, m.stato_prima, m.stato_dopo
-             FROM movimento m JOIN asset a ON a.id = m.asset_id LEFT JOIN cespite c ON c.id = a.cespite_id
+      query(`SELECT m.data, m.tipo, a.id AS asset_id, a.tipologia, a.marca, a.modello, c.numero AS cespite, m.stato_prima, m.stato_dopo, m.oggetto
+             FROM movimento m LEFT JOIN asset a ON a.id = m.asset_id LEFT JOIN cespite c ON c.id = a.cespite_id
              ORDER BY m.data DESC, m.id DESC LIMIT 10`),
     ]);
     if (vuota(req)) {

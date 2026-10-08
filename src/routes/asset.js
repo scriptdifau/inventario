@@ -159,20 +159,26 @@ router.post('/:id(\\d+)/modifica', async (req, res, next) => {
   } catch (e) { req.body.id = req.params.id; rerender(e, req, res, next, false); }
 });
 
-// eliminazione definitiva: storico movimenti incluso; le SIM montate restano (senza telefono, con l'azienda dell'asset);
-// il cespite si cancella solo se nessun altro asset lo usa
+// eliminazione definitiva dell'asset; resta traccia in Movimenti (tipo "Eliminazione") e lo storico precedente
+// resta leggibile (movimento.asset_id passa a NULL, la descrizione è in `oggetto`).
+// Le SIM montate restano, senza telefono e con l'azienda dell'asset; il cespite si cancella solo se nessun altro asset lo usa.
 router.post('/:id(\\d+)/elimina', async (req, res, next) => {
   const c = await pool.connect();
   try {
     await c.query('BEGIN');
-    const a = (await c.query('SELECT id, azienda_id, cespite_id FROM asset WHERE id = $1 FOR UPDATE', [req.params.id])).rows[0];
+    const a = (await c.query(`SELECT a.id, a.azienda_id, a.cespite_id, a.persona_id, a.stato, a.tipologia, a.marca, a.modello, a.serial, a.hostname, ce.numero AS cespite
+      FROM asset a LEFT JOIN cespite ce ON ce.id = a.cespite_id WHERE a.id = $1 FOR UPDATE OF a`, [req.params.id])).rows[0];
     if (!a) { await c.query('ROLLBACK'); return next(); }
+    const oggetto = [[a.marca, a.modello].filter(Boolean).join(' ') || a.tipologia, a.cespite ? 'cespite ' + a.cespite : null,
+      a.serial ? 'serial ' + a.serial : null, a.hostname].filter(Boolean).join(' · ');
     await c.query('UPDATE sim SET asset_id = NULL, azienda_id = coalesce(azienda_id, $2) WHERE asset_id = $1', [a.id, a.azienda_id]);
-    await c.query('DELETE FROM movimento WHERE asset_id = $1', [a.id]);
+    await c.query('UPDATE movimento SET oggetto = $2 WHERE asset_id = $1', [a.id, oggetto]);
+    await c.query(`INSERT INTO movimento (tipo, da_persona_id, stato_prima, oggetto, utente, note) VALUES ('Eliminazione', $1, $2, $3, $4, $5)`,
+      [a.persona_id, a.stato, oggetto, req.session.utente && req.session.utente.email, `${a.tipologia} eliminato definitivamente`]);
     await c.query('DELETE FROM asset WHERE id = $1', [a.id]);
     if (a.cespite_id) await c.query('DELETE FROM cespite c WHERE c.id = $1 AND NOT EXISTS (SELECT 1 FROM asset x WHERE x.cespite_id = c.id)', [a.cespite_id]);
     await c.query('COMMIT');
-    res.redirect('/asset');
+    res.redirect('/movimenti');
   } catch (e) { await c.query('ROLLBACK').catch(() => {}); next(e); } finally { c.release(); }
 });
 

@@ -73,9 +73,12 @@ router.post('/:id(\\d+)/modifica', async (req, res, next) => {
 
 router.post('/:id(\\d+)/elimina', async (req, res, next) => {
   try {
-    const s = (await query('SELECT asset_id, azienda_id FROM sim WHERE id = $1', [req.params.id])).rows[0];
+    const s = (await query('SELECT asset_id, azienda_id, codice, numero FROM sim WHERE id = $1', [req.params.id])).rows[0];
     if (!s) return next();
     await query('DELETE FROM sim WHERE id = $1', [req.params.id]);
+    await query(`INSERT INTO movimento (tipo, asset_id, oggetto, utente, note) VALUES ('Eliminazione SIM', $1, $2, $3, $4)`,
+      [s.asset_id, [s.codice, s.numero].filter(Boolean).join(' · '), req.session.utente && req.session.utente.email,
+        'SIM eliminata definitivamente: ' + ([s.codice, s.numero].filter(Boolean).join(' · '))]);
     res.redirect(destinazione(res, s));
   } catch (e) { next(e); }
 });

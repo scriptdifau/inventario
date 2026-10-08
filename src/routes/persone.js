@@ -97,7 +97,7 @@ router.post('/:id(\\d+)/modifica', async (req, res, next) => {
 // movimenti e SIM che la citavano restano, senza il nome
 router.post('/:id(\\d+)/elimina', async (req, res, next) => {
   try {
-    const p = (await query('SELECT id, nome, cognome FROM persona WHERE id = $1', [req.params.id])).rows[0];
+    const p = (await query('SELECT id, nome, cognome, email FROM persona WHERE id = $1', [req.params.id])).rows[0];
     if (!p) return next();
     const n = (await query('SELECT count(*)::int n FROM asset WHERE persona_id = $1', [p.id])).rows[0].n;
     if (n) {
@@ -107,7 +107,9 @@ router.post('/:id(\\d+)/elimina', async (req, res, next) => {
     await query('UPDATE movimento SET a_persona_id = NULL WHERE a_persona_id = $1', [p.id]);
     await query('UPDATE sim SET persona_id = NULL WHERE persona_id = $1', [p.id]);
     await query('DELETE FROM persona WHERE id = $1', [p.id]);
-    res.redirect('/persone');
+    await query(`INSERT INTO movimento (tipo, oggetto, utente, note) VALUES ('Eliminazione persona', $1, $2, 'Persona eliminata definitivamente')`,
+      [`${p.nome} ${p.cognome}${p.email ? ' · ' + p.email : ''}`, req.session.utente && req.session.utente.email]);
+    res.redirect('/movimenti');
   } catch (e) { next(e); }
 });
 
