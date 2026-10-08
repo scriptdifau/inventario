@@ -22,6 +22,12 @@ def s(v):
     v = str(v).strip()
     return v or None
 
+def num_testo(v):
+    """Numero di documento come testo: una cella numerica (4198) arriva da openpyxl come 4198.0; qui torna 4198."""
+    if isinstance(v, float) and v.is_integer(): return str(int(v))
+    if isinstance(v, int) and not isinstance(v, bool): return str(v)
+    return s(v)
+
 def parse_date(v, ctx=''):
     if v is None or v == '': return None
     if isinstance(v, dt.datetime): return v.date()
@@ -104,7 +110,7 @@ for r in rows('Asset'):
     f = fornitore(r.get('Fornitore'))
     if f and f not in forn: forn[f] = len(forn) + 1
     d_acq = parse_date(r.get('Data acquisto'), cod)
-    num = s(r.get('N. fattura'))
+    num = num_testo(r.get('N. fattura'))
     fid = None
     if num and f:
         key = (forn[f], num, d_acq)

@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { parseCsv, col, parseData } = require('../src/csv');
+const { parseCsv, col, parseData, numeroDocumento } = require('../src/csv');
 const { emailAmmessa } = require('../src/auth');
 
 test('parseCsv: virgolette, a capo, separatore ; e BOM', () => {
@@ -32,4 +32,14 @@ test('login: solo domini della stessa Workspace', () => {
   assert.ok(!ok('a@terre.it', undefined));
   assert.ok(!ok('a@evil.it', 'evil.it'));
   assert.ok(!emailAmmessa({ email: 'a@terre.it', email_verified: false, hd: 'terre.it' }));
+});
+
+
+test('numeroDocumento: toglie il ".0" dei numeri passati da Excel, lascia il resto', () => {
+  assert.strictEqual(numeroDocumento('4198.0'), '4198');
+  assert.strictEqual(numeroDocumento(' 4198.00 '), '4198');
+  assert.strictEqual(numeroDocumento('748/l'), '748/l');
+  assert.strictEqual(numeroDocumento('12.5'), '12.5');          // non è un intero
+  assert.strictEqual(numeroDocumento('1.0A'), '1.0A');
+  assert.strictEqual(numeroDocumento(undefined), '');
 });
