@@ -5,7 +5,7 @@
   <% if (esito.avvisi && esito.avvisi.length) { %><ul><% esito.avvisi.forEach(a => { %><li><%= a %></li><% }) %></ul><% } %></div><% } %>
 <% [['antivirus','Report antivirus','Ogni upload aggiunge un nuovo report; il controllo usa l\'ultimo.'],
     ['fatture','Fatture','Crea le fatture mancanti (fornitore + numero + data) e le collega agli asset indicati.'],
-    ['workspace','Utenti Google Workspace','Aggiorna lo stato Workspace delle persone e crea quelle nuove. Non cambia lo stato Attivo/Cessato.']].forEach(([k, t, d]) => { %>
+    ['workspace','Utenti Google Workspace','Abbina per nomecognome dell\'email (qualsiasi dominio), aggiorna lo stato Workspace, crea le persone nuove e segnala chi non c\'è più. Non cambia lo stato Attivo/Cessato.']].forEach(([k, t, d]) => { %>
 <form method="post" action="/importa/<%= k %>" class="card">
   <h2 style="margin-top:0"><%= t %></h2><p style="color:var(--mut)"><%= d %><br>Colonne: <%= formati[k] %></p>
   <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="nome" id="n-<%= k %>">

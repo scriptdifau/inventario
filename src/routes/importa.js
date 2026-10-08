@@ -5,7 +5,7 @@ const { parseCsv, col, parseData } = require('../csv');
 const FORMATI = {
   antivirus: 'export della console antivirus: Nome (o Dispositivo), Stato, Ultimo rilevato, Utente in uso, SO, Indirizzo IP locale, Indirizzo MAC',
   fatture: 'Fornitore, Numero, Data, Asset (codici AST-xxx separati da spazio, ; o |)',
-  workspace: 'Export utenti della console Admin: First Name, Last Name, Email Address, Status',
+  workspace: 'export utenti della console Admin: First Name, Last Name, Email Address, Status (opzionali: Department, Creation Time)',
 };
 
 router.get('/', (req, res) => res.render('importa', { formati: FORMATI, esito: null }));
@@ -94,37 +94,80 @@ router.post('/fatture', async (req, res, next) => {
 });
 
 // ---------- utenti Workspace (export CSV della console Admin) ----------
-// Aggiorna stato_workspace delle persone esistenti (per email, poi per nome+cognome) e crea le mancanti.
-// Non cambia mai `stato`: sospendere/cessare una persona resta una decisione umana.
+// Stesse regole di SincronizzaDipendenti.gs:
+//  - abbinamento per parte locale dell'email (gli alias cambiano dominio, non nomecognome), poi per nome completo;
+//  - `stato` (Attivo/Sospeso/Cessato) non viene mai sovrascritto: lo stato letto da Google va in `stato_workspace`;
+//  - chi non ha riscontro in Workspace viene marcato "Non presente" e segnalato.
+const norm = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z ]/g, '').replace(/\s+/g, ' ').trim();
+const locale = (e) => String(e || '').toLowerCase().split('@')[0].split('+')[0].replace(/[^a-z0-9]/g, '');
+
 router.post('/workspace', async (req, res, next) => {
   try {
     const righe = parseCsv(req.body.csv);
     const out = await transazione(async (c) => {
-      const avvisi = []; let agg = 0; let nuovi = 0;
+      const avvisi = []; const daRivedere = []; const spariti = []; const senzaAccount = [];
+      let agg = 0; let nuovi = 0; let statiWs = 0;
+      const persone = (await c.query('SELECT id, nome, cognome, email, stato, stato_workspace, reparto, data_ingresso FROM persona')).rows;
+      const perLocale = new Map(); const perNome = new Map();
+      for (const p of persone) {
+        const lc = locale(p.email); const nm = norm(`${p.nome} ${p.cognome}`);
+        if (lc && !perLocale.has(lc)) perLocale.set(lc, p);
+        if (nm) { if (!perNome.has(nm)) perNome.set(nm, p); if (!perLocale.has(nm.replace(/ /g, ''))) perLocale.set(nm.replace(/ /g, ''), p); }
+      }
+      const visti = new Set(); const localiWs = new Set();
+      for (const [i, r] of righe.entries()) {
+        const email = (col(r, 'Email Address', 'Email', 'Indirizzo email') || '').toLowerCase();
+        if (email) localiWs.add(locale(email));
+      }
       for (const [i, r] of righe.entries()) {
         const n = i + 2;
         const email = (col(r, 'Email Address', 'Email', 'Indirizzo email') || '').toLowerCase();
         const nome = col(r, 'First Name', 'Nome'); const cognome = col(r, 'Last Name', 'Cognome');
         if (!email || !nome || !cognome) { avvisi.push(`Riga ${n}: email, nome o cognome mancante, saltata`); continue; }
-        const stato = col(r, 'Status', 'Stato') || 'Active';
-        let p = await c.query('SELECT id FROM persona WHERE lower(email) = $1', [email]);
-        if (!p.rows[0]) p = await c.query('SELECT id FROM persona WHERE lower(nome) = lower($1) AND lower(cognome) = lower($2) AND email IS NULL', [nome, cognome]);
-        if (p.rows[0]) {
-          await c.query('UPDATE persona SET stato_workspace = $1, email = coalesce(email, $2) WHERE id = $3', [stato, email, p.rows[0].id]); agg++;
-        } else {
+        const raw = (col(r, 'Status', 'Stato') || 'Active').toLowerCase();
+        const stato = /archiv/.test(raw) ? 'Cessato' : /suspend|sospes/.test(raw) ? 'Sospeso' : 'Attivo';
+        const reparto = col(r, 'Department', 'Reparto');
+        const creato = parseData(col(r, 'Creation Time', 'Creato', 'Data creazione'), 'mdy');
+        let p = perLocale.get(locale(email)) || perNome.get(norm(`${nome} ${cognome}`));
+        if (!p) {
           try {
             await c.query('SAVEPOINT s');
-            await c.query(`INSERT INTO persona (nome, cognome, email, stato, stato_workspace, note) VALUES ($1,$2,$3,'Attivo',$4,$5)`,
-              [nome, cognome, email, stato, `Aggiunto da Workspace il ${new Date().toLocaleDateString('it-IT', { timeZone: 'Europe/Rome' })}`]);
-            nuovi++;
+            const ins = await c.query(`INSERT INTO persona (nome, cognome, email, reparto, stato, stato_workspace, data_ingresso, note)
+              VALUES ($1,$2,$3,$4,$5,$5,$6,$7) RETURNING id, nome, cognome, email, stato, stato_workspace, reparto, data_ingresso`,
+              [nome, cognome, email, reparto, stato, creato && creato.slice(0, 10),
+                `Aggiunto da Workspace il ${new Date().toLocaleDateString('it-IT', { timeZone: 'Europe/Rome' })}`]);
+            visti.add(ins.rows[0].id); nuovi++;
           } catch (e) {
             await c.query('ROLLBACK TO s');
             if (e.code !== '23505') throw e;
             avvisi.push(`Riga ${n}: ${nome} ${cognome} duplica un'altra persona (email o nome già presenti), saltata`);
           }
+          continue;
         }
+        visti.add(p.id);
+        try {
+          await c.query('SAVEPOINT s');
+          await c.query(`UPDATE persona SET email = $1, reparto = coalesce(reparto, $2), data_ingresso = coalesce(data_ingresso, $3::date),
+              stato_workspace = $4 WHERE id = $5`, [email, reparto, creato && creato.slice(0, 10), stato, p.id]);
+        } catch (e) {
+          await c.query('ROLLBACK TO s');
+          if (e.code !== '23505') throw e;
+          avvisi.push(`Riga ${n}: l'email ${email} è già di un'altra persona, ${nome} ${cognome} non aggiornata`); continue;
+        }
+        agg++; if (p.stato_workspace !== stato) statiWs++;
+        if (stato !== 'Attivo' && p.stato === 'Attivo') daRivedere.push(`${p.nome} ${p.cognome} (in Workspace: ${stato.toLowerCase()})`);
       }
-      return { riepilogo: `${agg} persone aggiornate, ${nuovi} nuove.`, avvisi };
+      for (const p of persone) {
+        if (visti.has(p.id)) continue;
+        const lc = locale(p.email) || norm(`${p.nome} ${p.cognome}`).replace(/ /g, '');
+        if (localiWs.has(lc)) continue;
+        await c.query(`UPDATE persona SET stato_workspace = 'Non presente' WHERE id = $1`, [p.id]);
+        (p.email ? spariti : senzaAccount).push(`${p.nome} ${p.cognome}`);
+      }
+      const elenco = (t, l) => l.length ? [`${t} (${l.length}): ${l.join(', ')}`] : [];
+      return { riepilogo: `${agg} persone aggiornate (${statiWs} cambi di stato Workspace), ${nuovi} nuove. La colonna Stato non è stata toccata.`,
+        avvisi: [...elenco('Attive qui ma non attive in Workspace', daRivedere), ...elenco('Spariti da Workspace (avevano un\'email)', spariti),
+          ...elenco('Mai avuto un account', senzaAccount), ...avvisi] };
     });
     risposta(res, 'workspace', out);
   } catch (e) { next(e); }

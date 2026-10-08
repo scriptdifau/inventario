@@ -80,6 +80,13 @@ test('import CSV: antivirus, fatture, workspace', { skip }, async () => {
   await query(`DELETE FROM fattura WHERE numero = '9999'`); await query(`DELETE FROM fornitore WHERE nome = 'ZZ Test'`);
   r = await post('/importa/workspace', { _csrf: t, csv: 'First Name [Required],Last Name [Required],Email Address [Required],Status [READ ONLY]\nZz,Test,zz.test@terre.it,Active' });
   assert.match(await r.text(), /1 nuove/);
-  await query(`DELETE FROM persona WHERE email = 'zz.test@terre.it'`);
+  // alias su altro dominio: stessa persona, nessun duplicato
+  r = await post('/importa/workspace', { _csrf: t, csv: 'First Name,Last Name,Email Address,Status\nZz,Test,zz.test@falacosagiusta.org,Suspended' });
+  const html = await r.text();
+  assert.match(html, /1 persone aggiornate/);
+  assert.match(html, /Attive qui ma non attive/);
+  assert.strictEqual((await query(`SELECT count(*)::int n FROM persona WHERE nome = 'Zz'`)).rows[0].n, 1);
+  await query(`DELETE FROM persona WHERE nome = 'Zz'`);
+  await query(`UPDATE persona SET stato_workspace = NULL`);
   assert.strictEqual((await post('/importa/antivirus', { _csrf: t, csv: 'x\n' })).status, 400);
 });
