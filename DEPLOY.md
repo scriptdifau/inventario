@@ -131,7 +131,7 @@ account di servizio basta per i tre domini, perché sono la stessa Workspace.
 ## 8. Aggiornamenti
 Si fanno da soli: ogni merge su `main` avvia un deploy. Controlla in *Node.js → Deployment* che sia completato e
 riavvia l'app se serve. Le modifiche allo schema sono in `migrazioni/`: applicale con `psql -f`, in ordine, **prima** di
-unire la modifica che le usa.
+unire la modifica che le usa. Se il file non è ancora sul server, si può incollare il suo contenuto in `psql` (`psql -h localhost -U UTENTE NOMEDB`, poi incolla e `\q`).
 
 ## 9. Dopo il passaggio
 Il foglio resta come riferimento (permessi da definire). Importa regolarmente il report antivirus e l'export utenti
