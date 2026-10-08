@@ -13,7 +13,7 @@
   <% }) %>
   <div class="grp str"><div class="et">Strumenti</div>
     <a class="v1 <%= on('/movimenti') ? 'on' : '' %>" href="/movimenti"><span>Movimenti</span></a>
-    <a class="v1 <%= on('/cespiti') ? 'on' : '' %>" href="/cespiti"><span>Cespiti ante 2018</span></a>
+    <a class="v1 <%= on('/cestino') ? 'on' : '' %>" href="/cestino"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg><span>Cestino</span><span class="c"><%= nCestino %></span></a>
     <a class="v1 <%= on('/importa') ? 'on' : '' %>" href="/importa"><span>Importa</span></a>
     <div class="et" style="margin-top:10px">Elenchi completi</div>
     <a class="v1 <%= path === '/asset' ? 'on' : '' %>" href="/asset"><span>Tutti gli asset</span></a>

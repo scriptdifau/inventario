@@ -1,0 +1,36 @@
+<%- include('_head', {titolo: 'Cestino'}) %>
+<div class="titolo"><h1>Cestino</h1><span class="mut"><%= righe.length %> risultati</span><span class="sp"></span><a class="btn sec sm" href="<%= xlsUrl %>">⬇ Scarica Excel</a></div>
+<p class="sottotitolo">Tutto ciò che è uscito dall'azienda e non è più in contabilità (<%= stati.join(', ') %>), per ritrovarne traccia. In contabilità restano gli stati fino a <b>Estinto</b>. Apri un asset per vedere lo storico e, se serve, <b>ripristinarlo</b>.</p>
+<%- include('_cestino_tab', {attiva: 'asset', nAsset: totale, nStorico}) %>
+<div class="chips">
+  <a class="chip <%= !filtri.stato ? 'on' : '' %>" href="<%= urlCon({stato: ''}) %>">Tutti <span class="mut"><%= totale %></span></a>
+  <% stati.forEach(st => { if (conteggi[st]) { %><a class="chip <%= filtri.stato === st ? 'on' : '' %>" href="<%= urlCon({stato: st}) %>"><%= st %> <span class="mut"><%= conteggi[st] %></span></a><% } }) %>
+</div>
+<p class="mut" style="margin:-4px 0 12px;font-size:.82rem">Valore storico degli asset nel Cestino: <b><%= euro(valore) %></b></p>
+<form class="filtri" method="get">
+  <label class="cerca">Cerca<input name="q" value="<%= filtri.q %>" placeholder="cespite, modello, serial, hostname, ultimo assegnatario…"></label>
+  <input type="hidden" name="stato" value="<%= filtri.stato %>">
+  <% if (ord.esplicito) { %><input type="hidden" name="ord" value="<%= ord.chiave %>"><input type="hidden" name="dir" value="<%= ord.dir %>"><% } %>
+  <%- include('_sel', {nome:'tipologia', label:'Tipologia', opzioni: tipologie.map(t=>({v:t,l:t})), valore: filtri.tipologia, vuoto:true}) %>
+  <%- include('_sel', {nome:'azienda', label:'Azienda', opzioni: aziende.map(a=>({v:a,l:a})), valore: filtri.azienda, vuoto:true}) %>
+  <%- include('_sel', {nome:'anno', label:'Anno di uscita', opzioni: anni.map(a=>({v:a,l:a})), valore: filtri.anno, vuoto:true}) %>
+  <button>Filtra</button>
+  <% if (filtri.q || filtri.stato || filtri.tipologia || filtri.azienda || filtri.anno) { %><a class="btn sec" href="/cestino">Azzera</a><% } %>
+</form>
+<%- include('_ordsel') %>
+<%- include('_testa', {griglia: 'r-cest', colonne: [{k: ''}, {k: 'dispositivo', label: 'Dispositivo'}, {k: 'stato', label: 'Stato'}, {k: 'dismissione', label: 'Dismesso il'}, {k: 'persona', label: 'Ultimo assegnatario'}, {k: 'azienda', label: 'Azienda'}, {k: 'importo', label: 'Importo', cls: 'n'}]}) %>
+<div class="righe">
+<% if (!righe.length) { %><div class="vuoto">Il Cestino è vuoto con questi filtri.</div><% } %>
+<% righe.forEach(r => { %>
+  <a class="riga r-cest" href="/asset/<%= r.id %>">
+    <span class="tondo"><%- include('_icon', {tipo: r.tipologia}) %></span>
+    <span><span class="t"><%= nomeAsset(r) %></span><br><span class="s"><%= [cesp(r.cespite), r.tipologia, r.hostname, r.serial].filter(Boolean).join(' · ') %></span></span>
+    <span><%- include('_badge', {stato: r.stato}) %></span>
+    <span class="s"><%= r.data_dismissione ? data(r.data_dismissione) : '—' %></span>
+    <span class="chi"><% if (r.ultimo) { %><%- include('_avatar', {nome: r.ultimo}) %><span class="nome"><%= r.ultimo %></span><% } else { %><span class="mut">—</span><% } %></span>
+    <span class="s"><%= r.azienda %></span>
+    <span class="n"><%= euro(r.importo) %></span>
+  </a>
+<% }) %>
+</div>
+<%- include('_foot') %>

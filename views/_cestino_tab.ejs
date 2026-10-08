@@ -1,0 +1,5 @@
+<%# schede del Cestino: attiva = 'asset' | 'storico'; nAsset, nStorico %>
+<div class="chips" style="margin-bottom:14px">
+  <a class="chip <%= attiva === 'asset' ? 'on' : '' %>" href="/cestino">Asset dismessi <span class="mut"><%= nAsset %></span></a>
+  <a class="chip <%= attiva === 'storico' ? 'on' : '' %>" href="/cestino?vista=storico">Storico cespiti ante 2018 <span class="mut"><%= nStorico %></span></a>
+</div>

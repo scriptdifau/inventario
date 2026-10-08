@@ -3,6 +3,7 @@ const express = require('express');
 const cookieSession = require('cookie-session');
 const auth = require('./auth');
 const { caricaAlbero } = require('./albero');
+const { nCestino } = require('./routes/cespiti');
 const eta = require('./eta');
 
 function creaApp() {
@@ -65,7 +66,10 @@ function creaApp() {
 
   app.use(async (req, res, next) => {
     if (req.path === '/healthz') return next();
-    try { res.locals.albero = await caricaAlbero(); next(); } catch (e) { next(e); }
+    try {
+      const [alb, cest] = await Promise.all([caricaAlbero(), nCestino()]);
+      res.locals.albero = alb; res.locals.nCestino = cest; next();
+    } catch (e) { next(e); }
   });
 
   app.use('/', require('./routes/dashboard'));
@@ -74,7 +78,8 @@ function creaApp() {
   app.use('/persone', require('./routes/persone'));
   app.use('/sim', require('./routes/sim'));
   app.use('/movimenti', require('./routes/movimenti'));
-  app.use('/cespiti', require('./routes/cespiti'));
+  app.use('/cestino', require('./routes/cestino'));
+  app.get('/cespiti', (req, res) => res.redirect(301, '/cestino?vista=storico' + (req.query.xlsx ? '&xlsx=1' : '')));   // vecchio indirizzo
   app.use('/importa', require('./routes/importa'));
 
   app.use((req, res) => res.status(404).render('errore', { messaggio: 'Pagina non trovata' }));

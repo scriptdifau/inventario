@@ -18,7 +18,7 @@
   <% if (!fisso('tipologia')) { %><%- include('_sel', {nome:'tipologia', label:'Tipologia', opzioni: tipologie.map(t=>({v:t,l:t})), valore: filtri.tipologia, vuoto:true}) %><% } %>
   <% if (!fisso('azienda')) { %><%- include('_sel', {nome:'azienda', label:'Azienda', opzioni: aziende.map(a=>({v:a.nome,l:a.nome})), valore: filtri.azienda, vuoto:true}) %><% } %>
   <%- include('_sel', {nome:'eta', label:'Età', opzioni: [{v:'att', l:'Oltre ' + etaSoglie.att + ' anni'}, {v:'sost', l:'Oltre ' + etaSoglie.sost + ' anni'}], valore: filtri.eta, vuoto:true}) %>
-  <label style="flex-direction:row;align-items:center;gap:6px;padding-bottom:9px"><input type="checkbox" name="uscita" value="1" <%= filtri.uscita ? 'checked' : '' %>> anche usciti</label>
+  <label style="flex-direction:row;align-items:center;gap:6px;padding-bottom:9px"><input type="checkbox" name="uscita" value="1" <%= filtri.uscita ? 'checked' : '' %>> anche nel Cestino</label>
   <button>Filtra</button>
   <% if (filtri.q || filtri.uscita || filtri.stato || filtri.av || filtri.eta || (!ctx && (filtri.tipologia || filtri.azienda))) { %><a class="btn sec" href="<%= base %>">Azzera</a><% } %>
 </form>
