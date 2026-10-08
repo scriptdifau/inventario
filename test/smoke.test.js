@@ -117,3 +117,39 @@ test('export Excel: ogni vista, anche filtrata', { skip }, async () => {
   for (const u of ['/persone', '/sim', '/movimenti', '/antivirus', '/cespiti', '/']) assert.ok(await righe(u + (u === '/' ? '?xlsx=1' : '?xlsx=1')) >= 0, u);
   assert.strictEqual(await righe('/cespiti?xlsx=1'), 23);
 });
+
+test('albero per azienda: pagine, filtri fissi, antivirus sotto PC/Server, SIM sotto Telefono, Excel', { skip }, async () => {
+  const { query } = require('../src/db');
+  const conta = async (url) => (await (await req(url)).text()).match(/(\d+) risultati/)?.[1];
+  for (const u of ['/az/cart-armata', '/az/le-parole', '/az/cart-armata/pc', '/az/cart-armata/mac', '/az/cart-armata/telefono',
+    '/az/cart-armata/pc/antivirus', '/az/cart-armata/server/antivirus', '/az/cart-armata/telefono/sim', '/az/le-parole/telefono/sim',
+    '/az/cart-armata/persone', '/az/le-parole/persone']) assert.strictEqual((await req(u)).status, 200, u);
+  // non esistono: azienda o tipologia inventate, antivirus sui Mac, SIM sui PC, tipologia che l'azienda non ha
+  for (const u of ['/az/boh', '/az/cart-armata/boh', '/az/cart-armata/mac/antivirus', '/az/cart-armata/pc/sim', '/az/le-parole/mac'])
+    assert.strictEqual((await req(u)).status, 404, u);
+
+  // i filtri sono imposti dal percorso: non si possono scavalcare dall'indirizzo
+  const pc = (await query(`SELECT count(*)::int n FROM v_asset_vivi WHERE azienda = 'Cart''armata' AND tipologia = 'PC'`)).rows[0].n;
+  assert.strictEqual(Number(await conta('/az/cart-armata/pc')), pc);
+  assert.strictEqual(Number(await conta('/az/cart-armata/pc?azienda=Le%20parole&tipologia=Mac')), pc);
+
+  // i numeri dell'albero coincidono con le liste
+  const home = await (await req('/')).text();
+  assert.match(home, new RegExp(`href="/az/cart-armata/pc"[^>]*>[\\s\\S]*?<span class="c">${pc}</span>`));
+  const sim = (await query(`SELECT count(*)::int n FROM sim s WHERE coalesce((SELECT a.azienda_id FROM asset a WHERE a.id = s.asset_id), s.azienda_id) = (SELECT id FROM azienda WHERE nome = 'Cart''armata')`)).rows[0].n;
+  assert.strictEqual(Number(await conta('/az/cart-armata/telefono/sim')), sim);
+  // nessuna SIM, persona o asset resta fuori dall'albero (tranne chi non ha proprio un'azienda)
+  const totSim = (await query('SELECT count(*)::int n FROM sim')).rows[0].n;
+  const sommaSim = Number(await conta('/az/cart-armata/telefono/sim')) + Number(await conta('/az/le-parole/telefono/sim'));
+  const orfane = (await query(`SELECT count(*)::int n FROM sim s WHERE coalesce((SELECT a.azienda_id FROM asset a WHERE a.id = s.asset_id), s.azienda_id) IS NULL`)).rows[0].n;
+  assert.strictEqual(sommaSim + orfane, totSim);
+
+  // Excel: stessa selezione della pagina
+  const xl = await req('/az/cart-armata/pc?xlsx=1');
+  assert.match(xl.headers.get('content-disposition'), /asset-/);
+  assert.strictEqual(Buffer.from(await xl.arrayBuffer()).subarray(0, 2).toString(), 'PK');
+  assert.match((await req('/az/cart-armata/pc/antivirus?xlsx=1')).headers.get('content-disposition'), /antivirus-/);
+  // il modulo "nuovo asset" parte con azienda e tipologia della pagina
+  const nuovo = await (await req('/asset/nuovo?azienda_id=1&tipologia=Mac')).text();
+  assert.match(nuovo, /<option value="Mac" selected>/);
+});

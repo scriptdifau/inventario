@@ -1,7 +1,10 @@
 <%- include('_head', {titolo: 'Asset'}) %>
-<% const qs = (extra) => { const p = new URLSearchParams(); Object.entries({ ...filtri, ...extra }).forEach(([k, v]) => { if (v) p.set(k, v); }); const t = p.toString(); return '/asset' + (t ? '?' + t : ''); }; %>
-<div class="titolo"><h1>Asset</h1><span class="mut"><%= righe.length %> risultati</span><span class="sp"></span>
-  <a class="btn sec sm" href="<%= xlsUrl %>">⬇ Scarica Excel</a><a class="btn sm" href="/asset/nuovo">+ Nuovo asset</a></div>
+<% const base = ctx ? ctx.base : '/asset'; const fisso = (k) => ctx && ctx.fissi.includes(k);
+   const qs = (extra) => { const p = new URLSearchParams(); Object.entries({ q: filtri.q, stato: filtri.stato, uscita: filtri.uscita, ...(fisso('tipologia') ? {} : { tipologia: filtri.tipologia }), ...(fisso('azienda') ? {} : { azienda: filtri.azienda }), ...extra }).forEach(([k, v]) => { if (v) p.set(k, v); }); const t = p.toString(); return base + (t ? '?' + t : ''); }; %>
+<%- include('_briciole') %>
+<div class="titolo"><h1><%= ctx ? ctx.titolo : 'Asset' %></h1><span class="mut"><%= righe.length %> risultati</span><span class="sp"></span>
+  <a class="btn sec sm" href="<%= xlsUrl %>">⬇ Scarica Excel</a><a class="btn sm" href="/asset/nuovo<%= ctx && ctx.tip ? '?azienda_id=' + ctx.az.id + '&tipologia=' + encodeURIComponent(ctx.tip.nome) : '' %>">+ Nuovo asset</a></div>
+<%- include('_schede') %>
 
 <div class="chips">
   <a class="chip <%= !filtri.stato ? 'on' : '' %>" href="<%= qs({stato: ''}) %>">Tutti</a>
@@ -11,11 +14,11 @@
 <form class="filtri" method="get">
   <label class="cerca">Cerca<input name="q" value="<%= filtri.q %>" placeholder="codice, persona, modello, serial, hostname…"></label>
   <input type="hidden" name="stato" value="<%= filtri.stato %>">
-  <%- include('_sel', {nome:'tipologia', label:'Tipologia', opzioni: tipologie.map(t=>({v:t,l:t})), valore: filtri.tipologia, vuoto:true}) %>
-  <%- include('_sel', {nome:'azienda', label:'Azienda', opzioni: aziende.map(a=>({v:a.nome,l:a.nome})), valore: filtri.azienda, vuoto:true}) %>
+  <% if (!fisso('tipologia')) { %><%- include('_sel', {nome:'tipologia', label:'Tipologia', opzioni: tipologie.map(t=>({v:t,l:t})), valore: filtri.tipologia, vuoto:true}) %><% } %>
+  <% if (!fisso('azienda')) { %><%- include('_sel', {nome:'azienda', label:'Azienda', opzioni: aziende.map(a=>({v:a.nome,l:a.nome})), valore: filtri.azienda, vuoto:true}) %><% } %>
   <label style="flex-direction:row;align-items:center;gap:6px;padding-bottom:9px"><input type="checkbox" name="uscita" value="1" <%= filtri.uscita ? 'checked' : '' %>> anche usciti</label>
   <button>Filtra</button>
-  <% if (filtri.q || filtri.tipologia || filtri.azienda || filtri.uscita || filtri.stato) { %><a class="btn sec" href="/asset">Azzera</a><% } %>
+  <% if (filtri.q || filtri.uscita || filtri.stato || (!ctx && (filtri.tipologia || filtri.azienda))) { %><a class="btn sec" href="<%= base %>">Azzera</a><% } %>
 </form>
 
 <div class="righe">

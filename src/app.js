@@ -2,6 +2,7 @@ const path = require('path');
 const express = require('express');
 const cookieSession = require('cookie-session');
 const auth = require('./auth');
+const { caricaAlbero } = require('./albero');
 
 function creaApp() {
   const app = express();
@@ -39,6 +40,7 @@ function creaApp() {
     // link "Scarica Excel": stessa vista, stessi filtri
     res.locals.xlsUrl = req.path + '?' + new URLSearchParams({ ...req.query, xlsx: '1' }).toString();
     res.locals.errore = null;
+    res.locals.ctx = null;
     res.locals.data = (d) => (d ? new Date(d).toLocaleDateString('it-IT', { timeZone: 'Europe/Rome' }) : '');
     res.locals.iso = (d) => (d instanceof Date ? d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Rome' }) : d || '');
     res.locals.euro = (n) => (n === null || n === undefined || n === '' ? '' : Number(n).toLocaleString('it-IT', { style: 'currency', currency: 'EUR', useGrouping: 'always' }));
@@ -49,7 +51,13 @@ function creaApp() {
     next();
   });
 
+  app.use(async (req, res, next) => {
+    if (req.path === '/healthz') return next();
+    try { res.locals.albero = await caricaAlbero(); next(); } catch (e) { next(e); }
+  });
+
   app.use('/', require('./routes/dashboard'));
+  app.use('/az', require('./routes/azienda'));
   app.use('/asset', require('./routes/asset'));
   app.use('/persone', require('./routes/persone'));
   app.use('/sim', require('./routes/sim'));

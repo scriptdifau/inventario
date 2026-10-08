@@ -1,5 +1,5 @@
 <%- include('_head', {titolo: 'Movimenti'}) %>
-<div class="titolo"><h1>Movimenti</h1><span class="mut"><%= righe.length %><%= righe.length === 500 ? '+' : '' %></span><span class="sp"></span><a class="btn sec sm" href="<%= xlsUrl %>">⬇ Scarica Excel</a></div>
+<div class="titolo"><h1>Movimenti</h1><span class="mut"><%= righe.length %><%= righe.length === 500 ? '+' : '' %> risultati</span><span class="sp"></span><a class="btn sec sm" href="<%= xlsUrl %>">⬇ Scarica Excel</a></div>
 <form class="filtri" method="get"><label class="cerca">Cerca<input name="q" value="<%= filtri.q %>" placeholder="asset o persona"></label>
   <%- include('_sel', {nome:'tipo', label:'Tipo', opzioni: tipi.map(t=>({v:t,l:t})), valore: filtri.tipo, vuoto:true}) %><button>Filtra</button></form>
 <% if (!righe.length) { %><div class="card vuoto">Nessun movimento con questi filtri.</div><% } %>

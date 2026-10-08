@@ -1,0 +1,1 @@
+<% if (ctx) { %><p class="briciole"><a href="/">Dashboard</a> <i>›</i> <a href="/az/<%= ctx.az.slug %>"><%= ctx.az.nome %></a><% if (ctx.tip) { %> <i>›</i> <a href="/az/<%= ctx.az.slug %>/<%= ctx.tip.slug %>"><%= ctx.tip.nome %></a><% } %></p><% } %>

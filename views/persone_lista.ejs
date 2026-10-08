@@ -1,5 +1,6 @@
 <%- include('_head', {titolo: 'Persone'}) %>
-<div class="titolo"><h1>Persone</h1><span class="mut"><%= righe.length %></span><span class="sp"></span>
+<%- include('_briciole') %>
+<div class="titolo"><h1><%= ctx ? ctx.az.nome + ' · Persone' : 'Persone' %></h1><span class="mut"><%= righe.length %> risultati</span><span class="sp"></span>
   <a class="btn sec sm" href="<%= xlsUrl %>">⬇ Scarica Excel</a><a class="btn sm" href="/persone/nuova">+ Nuova persona</a></div>
 <form class="filtri" method="get"><label class="cerca">Cerca<input name="q" value="<%= filtri.q %>" placeholder="nome o email"></label>
   <%- include('_sel', {nome:'stato', label:'Stato', opzioni: ['Attivo','Sospeso','Cessato'].map(t=>({v:t,l:t})), valore: filtri.stato, vuoto:true}) %><button>Filtra</button></form>

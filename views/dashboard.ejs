@@ -15,14 +15,14 @@
 <div class="grid g2">
 <% aziende.forEach((a, i) => { %>
   <section class="card az">
-    <h2><span class="pt" style="background:var(--c<%= i + 1 %>)"></span><%= a.nome %></h2>
+    <h2><span class="pt" style="background:var(--c<%= i + 1 %>)"></span><a href="/az/<%= a.slug %>" style="color:inherit"><%= a.nome %></a></h2>
     <div class="tot"><b><%= euro(a.importo) %></b><span class="mut"><%= a.vivi %> asset</span></div>
     <div class="barra" role="img" aria-label="Ripartizione degli asset per stato">
       <% Object.entries(a.stati).forEach(([k, n]) => { if (n) { %><i class="sg-<%= slug(k) %>" style="width:<%= (n / a.vivi * 100).toFixed(1) %>%" title="<%= NOMI[k] %>: <%= n %>"></i><% } }) %>
     </div>
     <div class="leg"><% Object.entries(a.stati).forEach(([k, n]) => { if (n) { %><span><em class="sg-<%= slug(k) %>"></em><%= NOMI[k] %> <b><%= n %></b></span><% } }) %></div>
     <% a.tipologie.forEach(t => { %>
-      <a class="tip" href="/asset?tipologia=<%= encodeURIComponent(t.tipologia) %>&azienda=<%= encodeURIComponent(a.nome) %>" style="color:inherit">
+      <a class="tip" href="/az/<%= a.slug %>/<%= slug(t.tipologia) %>" style="color:inherit">
         <span class="tondo"><%- include('_icon', {tipo: t.tipologia, dim: 16}) %></span><span><%= t.tipologia %></span><span class="q"><%= t.vivi %></span><span class="im"><%= euro(t.importo) %></span>
       </a>
     <% }) %>

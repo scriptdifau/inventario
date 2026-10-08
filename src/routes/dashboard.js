@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { query } = require('../db');
 const { inviaXlsx, num, vuota } = require('../export');
+const { slug: slugAz } = require('../albero');
 
 router.get('/', async (req, res, next) => {
   try {
@@ -32,7 +33,7 @@ router.get('/', async (req, res, next) => {
     const aziende = [];
     for (const r of riep.rows) {
       let a = aziende.find((x) => x.nome === r.azienda);
-      if (!a) { a = { nome: r.azienda, vivi: 0, importo: 0, stati: Object.fromEntries(STATI.map((k) => [k, 0])), tipologie: [] }; aziende.push(a); }
+      if (!a) { a = { nome: r.azienda, slug: slugAz(r.azienda), vivi: 0, importo: 0, stati: Object.fromEntries(STATI.map((k) => [k, 0])), tipologie: [] }; aziende.push(a); }
       const vivi = Number(r.totale) - Number(r.usciti);
       a.vivi += vivi; a.importo += Number(r.importo);
       STATI.forEach((k) => { a.stati[k] += Number(r[k]); });   // i conteggi arrivano come stringhe (bigint)
@@ -59,9 +60,14 @@ router.get('/', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.get('/antivirus', async (req, res, next) => {
+async function antivirusElenco(req, res, next) {
   try {
-    const r = await query(`SELECT * FROM v_controllo_antivirus ORDER BY (antivirus = 'OK'), codice`);
+    const { azienda = '', tipologia = '' } = req.query;
+    const p = []; const w = [];
+    if (azienda) { p.push(azienda); w.push(`v.azienda = $${p.length}`); }
+    if (tipologia) { p.push(tipologia); w.push(`a.tipologia = $${p.length}`); }
+    const r = await query(`SELECT v.*, a.tipologia FROM v_controllo_antivirus v JOIN asset a ON a.codice = v.codice
+      ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY (v.antivirus = 'OK'), v.codice`, p);
     const imp = await query('SELECT importato, file_nome FROM antivirus_import ORDER BY id DESC LIMIT 1');
     if (vuota(req)) {
       return inviaXlsx(res, 'antivirus', [{ nome: 'Controllo antivirus', righe: r.rows, colonne: [
@@ -71,6 +77,8 @@ router.get('/antivirus', async (req, res, next) => {
     }
     res.render('antivirus', { righe: r.rows, ultimo: imp.rows[0] });
   } catch (e) { next(e); }
-});
+}
+router.get('/antivirus', antivirusElenco);
 
 module.exports = router;
+module.exports.antivirusElenco = antivirusElenco;
