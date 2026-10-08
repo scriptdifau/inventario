@@ -1,5 +1,7 @@
 const router = require('express').Router();
 const { pool } = require('../db');
+const { sincronizza } = require('../workspace');
+const { utentiWorkspace, configurata } = require('../directory');
 const { parseCsv, col, parseData, numeroDocumento } = require('../csv');
 
 const FORMATI = {
@@ -93,83 +95,35 @@ router.post('/fatture', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// ---------- utenti Workspace (export CSV della console Admin) ----------
-// Stesse regole di SincronizzaDipendenti.gs:
-//  - abbinamento per parte locale dell'email (gli alias cambiano dominio, non nomecognome), poi per nome completo;
-//  - `stato` (Attivo/Sospeso/Cessato) non viene mai sovrascritto: lo stato letto da Google va in `stato_workspace`;
-//  - chi non ha riscontro in Workspace viene marcato "Non presente" e segnalato.
-const norm = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z ]/g, '').replace(/\s+/g, ' ').trim();
-const locale = (e) => String(e || '').toLowerCase().split('@')[0].split('+')[0].replace(/[^a-z0-9]/g, '');
-
+// ---------- utenti Workspace ----------
+// Regole di abbinamento in src/workspace.js (le stesse di SincronizzaDipendenti.gs); qui l'origine è l'export CSV della console Admin.
 router.post('/workspace', async (req, res, next) => {
   try {
     const righe = parseCsv(req.body.csv);
-    const out = await transazione(async (c) => {
-      const avvisi = []; const daRivedere = []; const spariti = []; const senzaAccount = [];
-      let agg = 0; let nuovi = 0; let statiWs = 0;
-      const persone = (await c.query('SELECT id, nome, cognome, email, stato, stato_workspace, reparto, data_ingresso FROM persona')).rows;
-      const perLocale = new Map(); const perNome = new Map();
-      for (const p of persone) {
-        const lc = locale(p.email); const nm = norm(`${p.nome} ${p.cognome}`);
-        if (lc && !perLocale.has(lc)) perLocale.set(lc, p);
-        if (nm) { if (!perNome.has(nm)) perNome.set(nm, p); if (!perLocale.has(nm.replace(/ /g, ''))) perLocale.set(nm.replace(/ /g, ''), p); }
-      }
-      const visti = new Set(); const localiWs = new Set();
-      for (const [i, r] of righe.entries()) {
-        const email = (col(r, 'Email Address', 'Email', 'Indirizzo email') || '').toLowerCase();
-        if (email) localiWs.add(locale(email));
-      }
-      for (const [i, r] of righe.entries()) {
-        const n = i + 2;
-        const email = (col(r, 'Email Address', 'Email', 'Indirizzo email') || '').toLowerCase();
-        const nome = col(r, 'First Name', 'Nome'); const cognome = col(r, 'Last Name', 'Cognome');
-        if (!email || !nome || !cognome) { avvisi.push(`Riga ${n}: email, nome o cognome mancante, saltata`); continue; }
-        const raw = (col(r, 'Status', 'Stato') || 'Active').toLowerCase();
-        const stato = /archiv/.test(raw) ? 'Cessato' : /suspend|sospes/.test(raw) ? 'Sospeso' : 'Attivo';
-        const reparto = col(r, 'Department', 'Reparto');
-        const creato = parseData(col(r, 'Creation Time', 'Creato', 'Data creazione'), 'mdy');
-        let p = perLocale.get(locale(email)) || perNome.get(norm(`${nome} ${cognome}`));
-        if (!p) {
-          try {
-            await c.query('SAVEPOINT s');
-            const ins = await c.query(`INSERT INTO persona (nome, cognome, email, reparto, stato, stato_workspace, data_ingresso, note)
-              VALUES ($1,$2,$3,$4,$5,$5,$6,$7) RETURNING id, nome, cognome, email, stato, stato_workspace, reparto, data_ingresso`,
-              [nome, cognome, email, reparto, stato, creato && creato.slice(0, 10),
-                `Aggiunto da Workspace il ${new Date().toLocaleDateString('it-IT', { timeZone: 'Europe/Rome' })}`]);
-            visti.add(ins.rows[0].id); nuovi++;
-          } catch (e) {
-            await c.query('ROLLBACK TO s');
-            if (e.code !== '23505') throw e;
-            avvisi.push(`Riga ${n}: ${nome} ${cognome} duplica un'altra persona (email o nome già presenti), saltata`);
-          }
-          continue;
-        }
-        visti.add(p.id);
-        try {
-          await c.query('SAVEPOINT s');
-          await c.query(`UPDATE persona SET email = $1, reparto = coalesce(reparto, $2), data_ingresso = coalesce(data_ingresso, $3::date),
-              stato_workspace = $4 WHERE id = $5`, [email, reparto, creato && creato.slice(0, 10), stato, p.id]);
-        } catch (e) {
-          await c.query('ROLLBACK TO s');
-          if (e.code !== '23505') throw e;
-          avvisi.push(`Riga ${n}: l'email ${email} è già di un'altra persona, ${nome} ${cognome} non aggiornata`); continue;
-        }
-        agg++; if (p.stato_workspace !== stato) statiWs++;
-        if (stato !== 'Attivo' && p.stato === 'Attivo') daRivedere.push(`${p.nome} ${p.cognome} (in Workspace: ${stato.toLowerCase()})`);
-      }
-      for (const p of persone) {
-        if (visti.has(p.id)) continue;
-        const lc = locale(p.email) || norm(`${p.nome} ${p.cognome}`).replace(/ /g, '');
-        if (localiWs.has(lc)) continue;
-        await c.query(`UPDATE persona SET stato_workspace = 'Non presente' WHERE id = $1`, [p.id]);
-        (p.email ? spariti : senzaAccount).push(`${p.nome} ${p.cognome}`);
-      }
-      const elenco = (t, l) => l.length ? [`${t} (${l.length}): ${l.join(', ')}`] : [];
-      return { riepilogo: `${agg} persone aggiornate (${statiWs} cambi di stato Workspace), ${nuovi} nuove. La colonna Stato non è stata toccata.`,
-        avvisi: [...elenco('Attive qui ma non attive in Workspace', daRivedere), ...elenco('Spariti da Workspace (avevano un\'email)', spariti),
-          ...elenco('Mai avuto un account', senzaAccount), ...avvisi] };
-    });
-    risposta(res, 'workspace', out);
+    const avvisi = []; const utenti = [];
+    for (const [i, r] of righe.entries()) {
+      const n = i + 2;
+      const email = (col(r, 'Email Address', 'Email', 'Indirizzo email') || '').toLowerCase();
+      const nome = col(r, 'First Name', 'Nome'); const cognome = col(r, 'Last Name', 'Cognome');
+      if (!email || !nome || !cognome) { avvisi.push(`Riga ${n}: email, nome o cognome mancante, saltata`); continue; }
+      const raw = (col(r, 'Status', 'Stato') || 'Active').toLowerCase();
+      const creato = parseData(col(r, 'Creation Time', 'Creato', 'Data creazione'), 'mdy');
+      utenti.push({ riga: n, email, nome, cognome, reparto: col(r, 'Department', 'Reparto'), creato: creato && creato.slice(0, 10),
+        stato: /archiv/.test(raw) ? 'Cessato' : /suspend|sospes/.test(raw) ? 'Sospeso' : 'Attivo' });
+    }
+    risposta(res, 'workspace', await sincronizza(utenti, avvisi));
+  } catch (e) { next(e); }
+});
+
+// stessa sincronizzazione, letta direttamente da Google (Directory API)
+router.post('/workspace-api', async (req, res, next) => {
+  try {
+    if (!configurata()) return risposta(res, 'workspace', { errore: 'Sincronizzazione automatica non configurata: mancano GOOGLE_SA_KEY (o GOOGLE_SA_KEY_FILE) e WORKSPACE_ADMIN_EMAIL.' });
+    let letti;
+    try { letti = await utentiWorkspace(); } catch (e) {
+      return risposta(res, 'workspace', { errore: 'Google ha rifiutato la richiesta: ' + (e.message || e) });
+    }
+    risposta(res, 'workspace', await sincronizza(letti.utenti, letti.avvisi));
   } catch (e) { next(e); }
 });
 

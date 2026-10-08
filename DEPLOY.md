@@ -99,6 +99,35 @@ aggiornamento): se ne tiene una copia fissa in `~/bin`.
 5. Un backup che resta sullo stesso server non protegge dalla perdita del server: scarica ogni tanto `ultimo.sql.gz`
    (SFTP o `scp -P 18765 UTENTE_SSH@HOST:backup-inventario/ultimo.sql.gz .`) e tienilo altrove (es. Drive).
 
+## 7b. Sincronizzazione con Google Workspace (Directory API)
+L'app legge gli utenti direttamente da Google e applica le regole di `SincronizzaDipendenti.gs` (abbina per `nomecognome`
+dell'email, scrive solo `stato_workspace`, non tocca `stato`, crea le persone nuove, segnala chi è sparito). Un solo
+account di servizio basta per i tre domini, perché sono la stessa Workspace.
+1. **Google Cloud Console**, stesso progetto del login: *API e servizi → Libreria* → abilita **Admin SDK API**. Poi
+   *IAM e amministrazione → Account di servizio → Crea* (nome `inventario-sync`, nessun ruolo), apri l'account →
+   *Chiavi → Aggiungi chiave → JSON*: scarica il file. Dai dettagli dell'account copia l'**ID client** (numero lungo, "ID univoco").
+2. **Console di amministrazione** (serve un super amministratore): admin.google.com → *Sicurezza → Controllo di accesso e dei dati →
+   Controlli API → Gestisci delega a livello di dominio → Aggiungi nuova*: ID client del punto 1, ambito
+   `https://www.googleapis.com/auth/admin.directory.user.readonly`. Autorizza.
+3. **Sul server** metti la chiave fuori dalla cartella del deploy (cambia a ogni aggiornamento), per esempio via SFTP in
+   `~/segreti/workspace-sa.json`, poi `chmod 600 ~/segreti/workspace-sa.json`. Non va mai in chat né su GitHub.
+4. **Variabili** nel pannello Node.js (poi *Esegui il deployment*):
+   `GOOGLE_SA_KEY_FILE=/home/UTENTE_SSH/segreti/workspace-sa.json` e `WORKSPACE_ADMIN_EMAIL=` l'email di un amministratore
+   (è l'account che l'app "impersona" per leggere la directory).
+5. **Prova**: in Importa il pulsante *Sincronizza ora*. Se Google risponde `unauthorized_client` o `access_denied`
+   la delega del punto 2 non è attiva (ID client o ambito sbagliati; a volte servono alcuni minuti).
+6. **Notturna (facoltativa)**: da cron non si vedono le variabili del pannello: crea `~/segreti/inventario.env` (permessi 600) con
+   `DATABASE_URL=…`, `GOOGLE_SA_KEY_FILE=…`, `WORKSPACE_ADMIN_EMAIL=…` e uno script fisso `~/bin/sincronizza-workspace.sh`:
+   ```
+   #!/usr/bin/env bash
+   export ENV_FILE="$HOME/segreti/inventario.env"
+   cd "$(ls -dt $HOME/www/*/public_html/.nodeapp/*/app_source | head -1)" || exit 1
+   exec /PERCORSO/DI/node scripts/sincronizza-workspace.js
+   ```
+   (`/PERCORSO/DI/node` si vede con `which node` dalla SSH). Cron, per esempio ogni notte alle 03:15:
+   `15 3 * * * /home/UTENTE_SSH/bin/sincronizza-workspace.sh >> /home/UTENTE_SSH/sincronizza.log 2>&1`;
+   nel log deve comparire `workspace ok`.
+
 ## 8. Aggiornamenti
 Si fanno da soli: ogni merge su `main` avvia un deploy. Controlla in *Node.js → Deployment* che sia completato e
 riavvia l'app se serve. Le modifiche allo schema sono in `migrazioni/`: applicale con `psql -f`, in ordine, **prima** di

@@ -88,6 +88,8 @@ test('import CSV: antivirus, fatture, workspace', { skip }, async () => {
   assert.strictEqual((await query(`SELECT count(*)::int n FROM persona WHERE nome = 'Zz'`)).rows[0].n, 1);
   await query(`DELETE FROM persona WHERE nome = 'Zz'`);
   await query(`UPDATE persona SET stato_workspace = NULL`);
+  // sincronizzazione via API non configurata: messaggio chiaro, nessuna modifica
+  assert.match(await (await post('/importa/workspace-api', { _csrf: t })).text(), /non configurata/);
   assert.strictEqual((await post('/importa/antivirus', { _csrf: t, csv: 'x\n' })).status, 400);
 });
 
