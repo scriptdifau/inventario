@@ -1,7 +1,6 @@
 <%- include('_head', {titolo: 'Cespiti ante 2018'}) %>
-<h1>Cespiti ante 2018</h1>
-<p><a class="btn sec" href="<%= xlsUrl %>">⬇ Scarica Excel</a></p>
-<p style="color:var(--mut)">Storico di sola lettura, copiato dal foglio per la quadratura con l'amministrazione. Non è collegato agli asset.</p>
+<div class="titolo"><h1>Cespiti ante 2018</h1><span class="sp"></span><a class="btn sec sm" href="<%= xlsUrl %>">⬇ Scarica Excel</a></div>
+<p class="sottotitolo">Storico di sola lettura, copiato dal foglio per la quadratura con l'amministrazione. Non è collegato agli asset.</p>
 <div class="tw"><table><tr><th class="n">N.</th><th>Categoria</th><th>Data</th><th>Fornitore</th><th>Descrizione</th><th class="n">Da trovare o eliminare</th><th class="n">Da abbinare</th><th>Note</th></tr>
 <% righe.forEach(r => { %><tr><td class="n"><%= r.numero %></td><td><%= r.categoria %></td><td><%= data(r.data) %></td><td><%= r.fornitore %></td><td><%= r.descrizione %></td><td class="n"><%= euro(r.da_trovare_eliminare) %></td><td class="n"><%= euro(r.da_abbinare) %></td><td><%= r.note %></td></tr><% }) %>
 <tr><th colspan="5">Totale</th><th class="n"><%= euro(tot.te) %></th><th class="n"><%= euro(tot.ab) %></th><th></th></tr></table></div>

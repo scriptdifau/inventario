@@ -1,18 +1,73 @@
 <%- include('_head', {titolo: 'Dashboard'}) %>
-<h1>Dashboard</h1>
-<p><a class="btn sec" href="<%= xlsUrl %>">⬇ Scarica Excel</a></p>
-<div class="card kpi">
-  <% Object.entries(totali).forEach(([az, tot]) => { %><div><span style="color:var(--mut)"><%= az %> · importo</span><b><%= euro(tot) %></b></div><% }) %>
-  <% av.forEach(r => { %><div><span style="color:var(--mut)">Antivirus <%= r.antivirus %></span><b class="<%= r.antivirus %>"><%= r.n %></b></div><% }) %>
+<div class="titolo"><h1>Dashboard</h1><span class="sp"></span><a class="btn sec sm" href="<%= xlsUrl %>">⬇ Scarica Excel</a></div>
+
+<div class="grid g4" style="margin-bottom:16px">
+  <% const vivi = aziende.reduce((t, a) => t + a.vivi, 0); const imp = aziende.reduce((t, a) => t + a.importo, 0); %>
+  <div class="card kpi" style="margin:0"><div class="l">Asset in vita</div><div class="v"><%= vivi %></div><div class="d"><%= aziende.map(a => a.vivi + ' ' + a.nome).join(' · ') %></div></div>
+  <div class="card kpi" style="margin:0"><div class="l">Valore a bilancio</div><div class="v"><%= euro(imp) %></div><div class="d">assegnati, in esercizio, disponibili, estinti</div></div>
+  <div class="card kpi" style="margin:0"><div class="l">Da verificare</div><div class="v <%= daVer.length ? 'warn' : '' %>"><%= daVer.length %></div><div class="d">asset con stato da chiarire</div></div>
+  <a class="card kpi" style="margin:0;color:inherit;display:block" href="/antivirus"><div class="l">Antivirus</div>
+    <div class="v <%= (av['Mancante'] || av['Da verificare']) ? 'warn' : 'ok' %>"><%= av['OK'] || 0 %><span class="mut" style="font-size:1rem;font-weight:500"> / <%= avTot %> ok</span></div>
+    <div class="d"><%= av['Mancante'] || 0 %> mancanti · <%= av['Da verificare'] || 0 %> da verificare</div></a>
 </div>
-<h2>Riepilogo</h2>
-<div class="tw"><table><tr><th>Azienda</th><th>Tipologia</th><th class="n">Assegnato</th><th class="n">In esercizio</th><th class="n">Disponibile</th><th class="n">Da verificare</th><th class="n">Non aziendale</th><th class="n">Estinto</th><th class="n">Usciti</th><th class="n">Totale</th><th class="n">Importo</th></tr>
-<% riep.forEach(r => { %><tr><td><%= r.azienda %></td><td><%= r.tipologia %></td><td class="n"><%= r.assegnato %></td><td class="n"><%= r.in_esercizio %></td><td class="n"><%= r.disponibile %></td><td class="n"><%= r.da_verificare %></td><td class="n"><%= r.non_aziendale %></td><td class="n"><%= r.estinto %></td><td class="n"><%= r.usciti %></td><td class="n"><%= r.totale %></td><td class="n"><%= euro(r.importo) %></td></tr><% }) %></table></div>
-<h2>Acquisti per anno</h2>
-<div class="tw"><table><tr><th>Anno</th><th>Azienda</th><th class="n">Asset</th><th class="n">Valore</th></tr>
-<% anni.forEach(r => { %><tr><td><%= r.anno %></td><td><%= r.azienda %></td><td class="n"><%= r.n_asset %></td><td class="n"><%= euro(r.valore) %></td></tr><% }) %></table></div>
-<h2>Da verificare (<%= daVer.length %>)</h2>
-<% if (daVer.length) { %><div class="tw"><table><% daVer.forEach(r => { %><tr><td><a href="/asset?q=<%= r.codice %>"><%= r.codice %></a></td><td><%= r.tipologia %></td><td><%= r.modello %></td><td><%= r.assegnato_a %></td></tr><% }) %></table></div><% } else { %><p>Nessuno.</p><% } %>
-<h2>Ultimi movimenti</h2>
-<div class="tw"><table><% ultimiMov.forEach(m => { %><tr><td><%= data(m.data) %></td><td><%= m.tipo %></td><td><%= m.codice %></td><td><%= m.stato_prima || '' %> → <%= m.stato_dopo || '' %></td></tr><% }) %></table></div>
+
+<% const NOMI = { assegnato: 'Assegnato', in_esercizio: 'In esercizio', disponibile: 'Disponibile', da_verificare: 'Da verificare', non_aziendale: 'Non aziendale', estinto: 'Estinto' }; %>
+<div class="grid g2">
+<% aziende.forEach((a, i) => { %>
+  <section class="card az">
+    <h2><span class="pt" style="background:var(--c<%= i + 1 %>)"></span><%= a.nome %></h2>
+    <div class="tot"><b><%= euro(a.importo) %></b><span class="mut"><%= a.vivi %> asset</span></div>
+    <div class="barra" role="img" aria-label="Ripartizione degli asset per stato">
+      <% Object.entries(a.stati).forEach(([k, n]) => { if (n) { %><i class="sg-<%= slug(k) %>" style="width:<%= (n / a.vivi * 100).toFixed(1) %>%" title="<%= NOMI[k] %>: <%= n %>"></i><% } }) %>
+    </div>
+    <div class="leg"><% Object.entries(a.stati).forEach(([k, n]) => { if (n) { %><span><em class="sg-<%= slug(k) %>"></em><%= NOMI[k] %> <b><%= n %></b></span><% } }) %></div>
+    <% a.tipologie.forEach(t => { %>
+      <a class="tip" href="/asset?tipologia=<%= encodeURIComponent(t.tipologia) %>&azienda=<%= encodeURIComponent(a.nome) %>" style="color:inherit">
+        <span class="tondo"><%- include('_icon', {tipo: t.tipologia, dim: 16}) %></span><span><%= t.tipologia %></span><span class="q"><%= t.vivi %></span><span class="im"><%= euro(t.importo) %></span>
+      </a>
+    <% }) %>
+  </section>
+<% }) %>
+</div>
+
+<div class="grid g2">
+  <section class="card">
+    <h2>Acquisti per anno</h2>
+    <svg class="grafico" viewBox="0 0 <%= grafico.W %> <%= grafico.H + 48 %>" role="img" aria-label="Valore degli acquisti per anno e azienda">
+      <g transform="translate(0 20)">
+      <line x1="0" x2="<%= grafico.W %>" y1="<%= grafico.H %>" y2="<%= grafico.H %>"/>
+      <% barre.forEach(b => { %>
+        <% b.parti.forEach(p => { if (p.valore > 0) { %><rect x="<%= b.x.toFixed(1) %>" y="<%= p.y.toFixed(1) %>" width="<%= b.w.toFixed(1) %>" height="<%= p.h.toFixed(1) %>" rx="2" fill="var(--c<%= p.i + 1 %>)"><title><%= b.anno %> · <%= p.azienda %>: <%= euro(p.valore) %></title></rect><% } }) %>
+        <text class="val" x="<%= (b.x + b.w / 2).toFixed(1) %>" y="<%= (b.yTot - 5).toFixed(1) %>" text-anchor="middle"><%= euroK(b.totale) %></text>
+        <text x="<%= (b.x + b.w / 2).toFixed(1) %>" y="<%= grafico.H + 17 %>" text-anchor="middle"><%= b.anno %></text>
+      <% }) %>
+      </g>
+    </svg>
+    <div class="leggenda"><% aziende.forEach((a, i) => { %><span><em style="background:var(--c<%= i + 1 %>)"></em><%= a.nome %></span><% }) %></div>
+  </section>
+
+  <section class="card attenzione">
+    <h2>Richiede attenzione</h2>
+    <% if (!daVer.length && !(av['Mancante'] || av['Da verificare'])) { %><div class="vuoto">Tutto in ordine.</div><% } %>
+    <% daVer.forEach(r => { %>
+      <a class="voce" href="/asset?q=<%= r.codice %>"><span class="tondo"><%- include('_icon', {tipo: r.tipologia, dim: 18}) %></span>
+        <span style="flex:1;min-width:0"><b><%= r.codice %></b> <span class="mut"><%= r.modello %></span><br><span class="mut" style="font-size:.85rem"><%= r.assegnato_a || 'senza assegnatario' %></span></span>
+        <%- include('_badge', {stato: 'Da verificare'}) %></a>
+    <% }) %>
+    <% if (av['Mancante'] || av['Da verificare']) { %>
+      <a class="voce" href="/antivirus"><span class="tondo" style="background:var(--warn-bg);color:var(--warn)">!</span>
+        <span style="flex:1"><b>Antivirus</b><br><span class="mut" style="font-size:.85rem"><%= av['Mancante'] || 0 %> PC senza protezione nel report, <%= av['Da verificare'] || 0 %> da verificare</span></span></a>
+    <% } %>
+  </section>
+</div>
+
+<section class="card">
+  <h2>Ultimi movimenti <a class="btn sec sm" style="margin-left:auto" href="/movimenti">Tutti</a></h2>
+  <ul class="storia">
+  <% ultimiMov.forEach(m => { %>
+    <li><span class="pt"></span><div><span class="t"><%= m.tipo %></span> · <a href="/asset?q=<%= m.codice %>"><%= m.codice %></a>
+      <div class="s"><%= data(m.data) %><% if (m.stato_prima || m.stato_dopo) { %> · <%= m.stato_prima || '—' %> → <%= m.stato_dopo || '—' %><% } %></div></div></li>
+  <% }) %>
+  </ul>
+</section>
 <%- include('_foot') %>

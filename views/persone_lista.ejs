@@ -1,8 +1,20 @@
 <%- include('_head', {titolo: 'Persone'}) %>
-<h1>Persone <a class="btn" href="/persone/nuova" style="font-size:.9rem">+ Nuova</a></h1>
-<p><a class="btn sec" href="<%= xlsUrl %>">⬇ Scarica Excel</a> <span style="color:var(--mut)">con i filtri attuali</span></p>
-<form class="filtri" method="get"><label>Cerca<input name="q" value="<%= filtri.q %>"></label>
-<%- include('_sel', {nome:'stato', label:'Stato', opzioni: ['Attivo','Sospeso','Cessato'].map(t=>({v:t,l:t})), valore: filtri.stato, vuoto:true}) %><button>Filtra</button></form>
-<div class="tw"><table><tr><th>Nome</th><th>Email</th><th>Azienda</th><th>Stato</th><th class="n">Asset</th></tr>
-<% righe.forEach(r => { %><tr><td><a href="/persone/<%= r.id %>"><%= r.cognome %> <%= r.nome %></a></td><td><%= r.email %></td><td><%= r.azienda %></td><td><%= r.stato %></td><td class="n"><%= r.n_asset %></td></tr><% }) %></table></div>
+<div class="titolo"><h1>Persone</h1><span class="mut"><%= righe.length %></span><span class="sp"></span>
+  <a class="btn sec sm" href="<%= xlsUrl %>">⬇ Scarica Excel</a><a class="btn sm" href="/persone/nuova">+ Nuova persona</a></div>
+<form class="filtri" method="get"><label class="cerca">Cerca<input name="q" value="<%= filtri.q %>" placeholder="nome o email"></label>
+  <%- include('_sel', {nome:'stato', label:'Stato', opzioni: ['Attivo','Sospeso','Cessato'].map(t=>({v:t,l:t})), valore: filtri.stato, vuoto:true}) %><button>Filtra</button></form>
+<% if (!righe.length) { %><div class="card vuoto">Nessuna persona con questi filtri.</div><% } %>
+<div class="persone">
+<% righe.forEach(r => { %>
+  <a class="pers" href="/persone/<%= r.id %>">
+    <div class="testa"><%- include('_avatar', {nome: r.nome + ' ' + r.cognome}) %>
+      <div style="min-width:0"><b><%= r.nome %> <%= r.cognome %></b><div class="mail"><%= r.email || 'nessuna email' %></div></div></div>
+    <div class="piede">
+      <%- include('_badge', {stato: r.stato}) %>
+      <% if (r.azienda) { %><span class="mut" style="font-size:.82rem"><%= r.azienda %></span><% } %>
+      <span class="mut" style="margin-left:auto;font-size:.82rem"><%= r.n_asset %> asset</span>
+    </div>
+  </a>
+<% }) %>
+</div>
 <%- include('_foot') %>

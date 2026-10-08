@@ -41,7 +41,11 @@ function creaApp() {
     res.locals.errore = null;
     res.locals.data = (d) => (d ? new Date(d).toLocaleDateString('it-IT', { timeZone: 'Europe/Rome' }) : '');
     res.locals.iso = (d) => (d instanceof Date ? d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Rome' }) : d || '');
-    res.locals.euro = (n) => (n === null || n === undefined || n === '' ? '' : Number(n).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' }));
+    res.locals.euro = (n) => (n === null || n === undefined || n === '' ? '' : Number(n).toLocaleString('it-IT', { style: 'currency', currency: 'EUR', useGrouping: 'always' }));
+    res.locals.euroK = (n) => (Number(n) >= 1000 ? (Number(n) / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 }) + ' k€' : Math.round(Number(n)) + ' €');
+    res.locals.slug = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    res.locals.iniziali = (t) => String(t || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0].toUpperCase()).join('');
+    res.locals.tinta = (t) => { let h = 0; for (const c of String(t || '')) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
     next();
   });
 

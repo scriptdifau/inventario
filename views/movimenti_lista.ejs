@@ -1,9 +1,14 @@
 <%- include('_head', {titolo: 'Movimenti'}) %>
-<h1>Movimenti</h1>
-<p><a class="btn sec" href="<%= xlsUrl %>">⬇ Scarica Excel</a> <span style="color:var(--mut)">con i filtri attuali</span></p>
-<form class="filtri" method="get"><label>Cerca<input name="q" value="<%= filtri.q %>" placeholder="asset o persona"></label>
-<%- include('_sel', {nome:'tipo', label:'Tipo', opzioni: tipi.map(t=>({v:t,l:t})), valore: filtri.tipo, vuoto:true}) %><button>Filtra</button></form>
-<div class="tw"><table><tr><th>Data</th><th>Tipo</th><th>Asset</th><th>Da</th><th>A</th><th>Stato</th><th>Note</th></tr>
-<% righe.forEach(m => { %><tr><td><%= data(m.data) %></td><td><%= m.tipo %></td><td><a href="/asset/<%= m.asset_id %>"><%= m.codice %></a></td><td><%= m.da %></td><td><%= m.a %></td><td><%= m.stato_prima || '' %> → <%= m.stato_dopo || '' %></td><td><%= m.note %></td></tr><% }) %></table></div>
-<p style="color:var(--mut)">Ultimi 500.</p>
+<div class="titolo"><h1>Movimenti</h1><span class="mut"><%= righe.length %><%= righe.length === 500 ? '+' : '' %></span><span class="sp"></span><a class="btn sec sm" href="<%= xlsUrl %>">⬇ Scarica Excel</a></div>
+<form class="filtri" method="get"><label class="cerca">Cerca<input name="q" value="<%= filtri.q %>" placeholder="asset o persona"></label>
+  <%- include('_sel', {nome:'tipo', label:'Tipo', opzioni: tipi.map(t=>({v:t,l:t})), valore: filtri.tipo, vuoto:true}) %><button>Filtra</button></form>
+<% if (!righe.length) { %><div class="card vuoto">Nessun movimento con questi filtri.</div><% } %>
+<% let g = null; righe.forEach((m, i) => { const giorno = data(m.data); if (giorno !== g) { if (g !== null) { %></ul></div><% } g = giorno; %>
+  <div class="giorno"><%= giorno %></div><div class="card" style="padding:6px 18px"><ul class="storia">
+<% } %>
+  <li><span class="pt"></span><div><span class="t"><%= m.tipo %></span> · <a href="/asset/<%= m.asset_id %>"><%= m.codice %></a><% if (!m.automatico) { %> <span class="badge">manuale</span><% } %>
+    <div class="s"><% if (m.da || m.a) { %><%= m.da || '—' %> → <%= m.a || '—' %><% } %><% if (m.stato_prima || m.stato_dopo) { %><%= (m.da || m.a) ? ' · ' : '' %><%= m.stato_prima || '—' %> → <%= m.stato_dopo || '—' %><% } %></div>
+    <% if (m.note && !/^\(automatico\)/.test(m.note)) { %><div class="s"><%= m.note %></div><% } %></div></li>
+<% }) %><% if (g !== null) { %></ul></div><% } %>
+<p class="mut" style="margin-top:14px">Qui gli ultimi 500; il file Excel contiene tutti i movimenti filtrati.</p>
 <%- include('_foot') %>

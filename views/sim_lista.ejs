@@ -1,8 +1,19 @@
 <%- include('_head', {titolo: 'SIM'}) %>
-<h1>SIM <a class="btn" href="/sim/nuova" style="font-size:.9rem">+ Nuova</a></h1>
-<p><a class="btn sec" href="<%= xlsUrl %>">⬇ Scarica Excel</a> <span style="color:var(--mut)">con i filtri attuali</span></p>
-<form class="filtri" method="get"><label>Cerca<input name="q" value="<%= filtri.q %>"></label>
-<%- include('_sel', {nome:'stato', label:'Stato', opzioni: stati.map(t=>({v:t,l:t})), valore: filtri.stato, vuoto:true}) %><button>Filtra</button></form>
-<div class="tw"><table><tr><th>ID</th><th>Numero</th><th>Stato</th><th>Assegnata a</th><th>Operatore</th><th>Piano</th><th class="n">€/mese</th><th>Telefono</th><th>Azienda</th></tr>
-<% righe.forEach(r => { %><tr><td><a href="/sim/<%= r.id %>/modifica"><%= r.codice %></a></td><td><%= r.numero %></td><td><%= r.stato %></td><td><%= r.persona %></td><td><%= r.operatore %></td><td><%= r.piano %></td><td class="n"><%= euro(r.costo_mensile) %></td><td><%= r.asset_codice %></td><td><%= r.azienda %></td></tr><% }) %></table></div>
+<div class="titolo"><h1>SIM</h1><span class="mut"><%= righe.length %></span><span class="sp"></span>
+  <a class="btn sec sm" href="<%= xlsUrl %>">⬇ Scarica Excel</a><a class="btn sm" href="/sim/nuova">+ Nuova SIM</a></div>
+<form class="filtri" method="get"><label class="cerca">Cerca<input name="q" value="<%= filtri.q %>" placeholder="numero, codice o persona"></label>
+  <%- include('_sel', {nome:'stato', label:'Stato', opzioni: stati.map(t=>({v:t,l:t})), valore: filtri.stato, vuoto:true}) %><button>Filtra</button></form>
+<div class="righe">
+<% if (!righe.length) { %><div class="vuoto">Nessuna SIM con questi filtri.</div><% } %>
+<% righe.forEach(r => { %>
+  <a class="riga r-sim" href="/sim/<%= r.id %>/modifica">
+    <span class="tondo"><%- include('_icon', {tipo: 'SIM'}) %></span>
+    <span><span class="t"><%= r.numero || 'senza numero' %></span><br><span class="s"><%= r.codice %> · <%= r.operatore %></span></span>
+    <span class="chi"><% if (r.persona) { %><%- include('_avatar', {nome: r.persona}) %><span class="nome"><%= r.persona %></span><% } else { %><span class="mut">—</span><% } %></span>
+    <span class="s"><%= r.piano %><%= r.asset_codice ? ' · ' + r.asset_codice : '' %></span>
+    <span class="n"><%= r.costo_mensile ? euro(r.costo_mensile) + '/mese' : '' %></span>
+    <span><%- include('_badge', {stato: r.stato}) %></span>
+  </a>
+<% }) %>
+</div>
 <%- include('_foot') %>

@@ -35,7 +35,10 @@ router.get('/', async (req, res, next) => {
         { h: 'Importo €', v: (x) => num(x.importo), t: 'euro' }, { h: 'Data dismissione', v: (x) => x.data_dismissione, t: 'data' },
         { h: 'Note', v: (x) => x.note }] }]);
     }
-    res.render('asset_lista', { righe: r.rows, filtri: { q, stato, tipologia, azienda, uscita }, ...(await lookup()) });
+    // conteggi per stato (asset in vita) per i filtri rapidi
+    const cs = await query(`SELECT stato, count(*)::int AS n FROM v_asset WHERE NOT fuori GROUP BY stato`);
+    const conteggi = Object.fromEntries(cs.rows.map((x) => [x.stato, x.n]));
+    res.render('asset_lista', { righe: r.rows, filtri: { q, stato, tipologia, azienda, uscita }, conteggi, ...(await lookup()) });
   } catch (e) { next(e); }
 });
 
