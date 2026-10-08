@@ -1,9 +1,8 @@
 // Albero: /az/:azienda  ->  panoramica, una pagina per tipologia di asset, persone;
-// sotto Telefono le SIM (l'antivirus è un simbolo sulle righe dei PC). Usa gli stessi elenchi del resto dell'app con i filtri già impostati.
+// (antivirus e SIM sono simboli sulle righe dei PC e dei telefoni). Usa gli stessi elenchi del resto dell'app con i filtri già impostati.
 const router = require('express').Router();
 const asset = require('./asset');
 const persone = require('./persone');
-const sim = require('./sim');
 const { query } = require('../db');
 
 // risolve l'azienda dallo slug; altrimenti passa oltre (404)
@@ -22,13 +21,6 @@ function contesto(req, res, filtri, ctx) {
   res.locals.ctx = ctx;
 }
 
-function schede(az, tip, attiva) {
-  const base = `/az/${az.slug}/${tip.slug}`;
-  const s = [{ k: 'elenco', label: 'Elenco', href: base, n: tip.vivi }];
-  if (tip.sim !== null) s.push({ k: 'sim', label: 'SIM', href: `${base}/sim`, n: tip.sim });
-  return s.length > 1 ? s.map((x) => ({ ...x, on: x.k === attiva })) : [];
-}
-
 router.get('/:az', async (req, res, next) => {
   try {
     const az = req.az;
@@ -44,23 +36,19 @@ router.get('/:az', async (req, res, next) => {
 });
 
 router.get('/:az/persone', (req, res, next) => {
-  contesto(req, res, { azienda: req.az.nome }, { az: req.az, tip: null, base: `/az/${req.az.slug}/persone`, titolo: 'Persone', fissi: ['azienda'], tabs: [] });
+  contesto(req, res, { azienda: req.az.nome }, { az: req.az, tip: null, base: `/az/${req.az.slug}/persone`, titolo: 'Persone', fissi: ['azienda'] });
   return persone.elenco(req, res, next);
 });
 
 router.get('/:az/:tip', (req, res, next) => {
   const { az, tip } = req;
   contesto(req, res, { azienda: az.nome, tipologia: tip.nome },
-    { az, tip, base: `/az/${az.slug}/${tip.slug}`, titolo: tip.nome, fissi: ['azienda', 'tipologia'], tabs: schede(az, tip, 'elenco') });
-  return asset.elenco(req, res, next);
-});
-
-router.get('/:az/:tip/sim', (req, res, next) => {
-  const { az, tip } = req;
-  if (tip.sim === null) return next('route');
-  contesto(req, res, { azienda: az.nome },
-    { az, tip, base: `/az/${az.slug}/${tip.slug}/sim`, titolo: `${tip.nome} · SIM`, fissi: ['azienda'], tabs: schede(az, tip, 'sim') });
-  return sim.elenco(req, res, next);
+    { az, tip, base: `/az/${az.slug}/${tip.slug}`, titolo: tip.nome, fissi: ['azienda', 'tipologia'] });
+  // sulla pagina dei telefoni: le SIM dell'azienda che non sono montate su nessun telefono (es. SIM dati)
+  if (tip.sim === null) return asset.elenco(req, res, next);
+  query(`SELECT s.id, s.numero, s.stato, s.operatore, s.piano, s.costo_mensile, s.note FROM sim s
+         WHERE s.asset_id IS NULL AND s.azienda_id = $1 ORDER BY (s.stato = 'Cessata'), s.id`, [az.id])
+    .then((r) => { res.locals.simLibere = r.rows; return asset.elenco(req, res, next); }, next);
 });
 
 module.exports = router;

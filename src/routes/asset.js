@@ -29,7 +29,7 @@ async function elenco(req, res, next) {
     const { q = '', stato = '', tipologia = '', azienda = '', uscita = '', av = '' } = req.query;
     const where = []; const p = [];
     if (!uscita) where.push('NOT fuori');
-    if (q) { p.push(`%${q}%`); where.push(`(cespite::text ILIKE $${p.length} OR codice ILIKE $${p.length} OR coalesce(assegnato_a,'') ILIKE $${p.length} OR coalesce(modello,'') ILIKE $${p.length}
+    if (q) { p.push(`%${q}%`); where.push(`(cespite::text ILIKE $${p.length} OR coalesce(sim_numero,'') ILIKE $${p.length} OR codice ILIKE $${p.length} OR coalesce(assegnato_a,'') ILIKE $${p.length} OR coalesce(modello,'') ILIKE $${p.length}
       OR coalesce(marca,'') ILIKE $${p.length} OR coalesce(serial,'') ILIKE $${p.length} OR coalesce(hostname,'') ILIKE $${p.length})`); }
     if (stato) { p.push(stato); where.push(`stato = $${p.length}`); }
     if (tipologia) { p.push(tipologia); where.push(`tipologia = $${p.length}`); }
@@ -38,8 +38,10 @@ async function elenco(req, res, next) {
     if (av === 'ok') where.push("av_stato = 'OK'");
     const ord = ordine(req, ORD_ASSET, 'persona', 'id');
     // k_cognome/k_nome: ordine per cognome della persona (v_asset ha solo "Nome Cognome")
-    const r = await query(`SELECT * FROM (SELECT v.*, ${tn('pe.cognome')} AS k_cognome, ${tn('pe.nome')} AS k_nome, av.antivirus AS av_stato, av.ultimo_rilevato AS av_visto
-        FROM v_asset v LEFT JOIN asset a ON a.id = v.id LEFT JOIN persona pe ON pe.id = a.persona_id LEFT JOIN v_controllo_antivirus av ON av.codice = v.codice) x
+    const r = await query(`SELECT * FROM (SELECT v.*, ${tn('pe.cognome')} AS k_cognome, ${tn('pe.nome')} AS k_nome, av.antivirus AS av_stato, av.ultimo_rilevato AS av_visto,
+        sm.numero AS sim_numero, sm.stato AS sim_stato, sm.operatore AS sim_operatore, sm.piano AS sim_piano, sm.costo_mensile AS sim_costo
+        FROM v_asset v LEFT JOIN asset a ON a.id = v.id LEFT JOIN persona pe ON pe.id = a.persona_id LEFT JOIN v_controllo_antivirus av ON av.codice = v.codice
+        LEFT JOIN LATERAL (SELECT numero, stato, operatore, piano, costo_mensile FROM sim s WHERE s.asset_id = v.id ORDER BY (s.stato = 'Cessata'), s.id LIMIT 1) sm ON true) x
       ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY ${ord.sql}`, p);
     if (vuota(req)) {
       return inviaXlsx(res, 'asset', [{ nome: 'Asset', righe: r.rows, colonne: [
@@ -49,6 +51,8 @@ async function elenco(req, res, next) {
         { h: 'Sistema operativo', v: (x) => x.sistema_operativo }, { h: 'Serial', v: (x) => x.serial }, { h: 'Hostname', v: (x) => x.hostname },
         { h: 'Antivirus', v: (x) => (x.av_stato === 'OK' ? 'Sì' : x.av_stato === 'Mancante' ? 'No' : x.av_stato) },
         { h: 'Azienda', v: (x) => x.azienda }, { h: 'Fornitore', v: (x) => x.fornitore },
+        { h: 'Numero SIM', v: (x) => x.sim_numero }, { h: 'Stato SIM', v: (x) => x.sim_stato }, { h: 'Operatore SIM', v: (x) => x.sim_operatore },
+        { h: 'Piano SIM', v: (x) => x.sim_piano }, { h: 'Costo mensile SIM €', v: (x) => num(x.sim_costo), t: 'euro' },
         { h: 'N. fattura', v: (x) => x.n_fattura }, { h: 'Data acquisto', v: (x) => x.data_acquisto, t: 'data' },
         { h: 'Importo €', v: (x) => num(x.importo), t: 'euro' }, { h: 'Data dismissione', v: (x) => x.data_dismissione, t: 'data' },
         { h: 'Note', v: (x) => x.note }, { h: 'Codice interno', v: (x) => x.codice }] }]);
@@ -129,7 +133,7 @@ router.get('/:id(\\d+)', async (req, res, next) => {
       query(`SELECT m.*, d.nome || ' ' || d.cognome AS da, t.nome || ' ' || t.cognome AS a FROM movimento m
              LEFT JOIN persona d ON d.id = m.da_persona_id LEFT JOIN persona t ON t.id = m.a_persona_id
              WHERE m.asset_id = $1 ORDER BY m.data DESC, m.id DESC`, [req.params.id]),
-      query('SELECT id, codice, numero, stato FROM sim WHERE asset_id = $1', [req.params.id]),
+      query(`SELECT s.*, p.nome || ' ' || p.cognome AS persona FROM sim s LEFT JOIN persona p ON p.id = s.persona_id WHERE s.asset_id = $1 ORDER BY (s.stato = 'Cessata'), s.id`, [req.params.id]),
       query('SELECT antivirus, dispositivo_report, ultimo_rilevato FROM v_controllo_antivirus WHERE codice = $1', [a.rows[0].codice]),
     ]);
     res.render('asset_scheda', { a: a.rows[0], mov: mov.rows, sim: sim.rows, av: avs.rows[0] || null });
