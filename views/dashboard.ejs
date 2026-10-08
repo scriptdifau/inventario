@@ -6,7 +6,7 @@
   <div class="card kpi" style="margin:0"><div class="l">Asset in vita</div><div class="v"><%= vivi %></div><div class="d"><%= aziende.map(a => a.vivi + ' ' + a.nome).join(' · ') %></div></div>
   <div class="card kpi" style="margin:0"><div class="l">Valore a bilancio</div><div class="v"><%= euro(imp) %></div><div class="d">assegnati, in esercizio, disponibili, estinti</div></div>
   <div class="card kpi" style="margin:0"><div class="l">Da verificare</div><div class="v <%= daVer.length ? 'warn' : '' %>"><%= daVer.length %></div><div class="d">asset con stato da chiarire</div></div>
-  <a class="card kpi" style="margin:0;color:inherit;display:block" href="/antivirus"><div class="l">Antivirus</div>
+  <a class="card kpi" style="margin:0;color:inherit;display:block" href="/asset?av=problemi"><div class="l">Antivirus</div>
     <div class="v <%= (av['Mancante'] || av['Da verificare']) ? 'warn' : 'ok' %>"><%= av['OK'] || 0 %><span class="mut" style="font-size:1rem;font-weight:500"> / <%= avTot %> ok</span></div>
     <div class="d"><%= av['Mancante'] || 0 %> mancanti · <%= av['Da verificare'] || 0 %> da verificare</div></a>
 </div>
@@ -50,12 +50,12 @@
     <h2>Richiede attenzione</h2>
     <% if (!daVer.length && !(av['Mancante'] || av['Da verificare'])) { %><div class="vuoto">Tutto in ordine.</div><% } %>
     <% daVer.forEach(r => { %>
-      <a class="voce" href="/asset?q=<%= r.codice %>"><span class="tondo"><%- include('_icon', {tipo: r.tipologia, dim: 18}) %></span>
-        <span style="flex:1;min-width:0"><b><%= r.codice %></b> <span class="mut"><%= r.modello %></span><br><span class="mut" style="font-size:.85rem"><%= r.assegnato_a || 'senza assegnatario' %></span></span>
+      <a class="voce" href="/asset/<%= r.id %>"><span class="tondo"><%- include('_icon', {tipo: r.tipologia, dim: 18}) %></span>
+        <span style="flex:1;min-width:0"><b><%= nomeAsset(r) %></b><br><span class="mut" style="font-size:.85rem"><%= [cesp(r.cespite), r.assegnato_a || 'senza assegnatario'].filter(Boolean).join(' · ') %></span></span>
         <%- include('_badge', {stato: 'Da verificare'}) %></a>
     <% }) %>
     <% if (av['Mancante'] || av['Da verificare']) { %>
-      <a class="voce" href="/antivirus"><span class="tondo" style="background:var(--warn-bg);color:var(--warn)">!</span>
+      <a class="voce" href="/asset?av=problemi"><span class="tondo" style="background:var(--warn-bg);color:var(--warn)">!</span>
         <span style="flex:1"><b>Antivirus</b><br><span class="mut" style="font-size:.85rem"><%= av['Mancante'] || 0 %> PC senza protezione nel report, <%= av['Da verificare'] || 0 %> da verificare</span></span></a>
     <% } %>
   </section>
@@ -65,7 +65,7 @@
   <h2>Ultimi movimenti <a class="btn sec sm" style="margin-left:auto" href="/movimenti">Tutti</a></h2>
   <ul class="storia">
   <% ultimiMov.forEach(m => { %>
-    <li><span class="pt"></span><div><span class="t"><%= m.tipo %></span> · <a href="/asset?q=<%= m.codice %>"><%= m.codice %></a>
+    <li><span class="pt"></span><div><span class="t"><%= m.tipo %></span> · <a href="/asset/<%= m.asset_id %>"><%= nomeAsset(m) %></a><%= m.cespite ? ' · ' + cesp(m.cespite) : '' %>
       <div class="s"><%= data(m.data) %><% if (m.stato_prima || m.stato_dopo) { %> · <%= m.stato_prima || '—' %> → <%= m.stato_dopo || '—' %><% } %></div></div></li>
   <% }) %>
   </ul>

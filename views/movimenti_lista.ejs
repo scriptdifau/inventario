@@ -6,7 +6,7 @@
 <% let g = null; righe.forEach((m, i) => { const giorno = data(m.data); if (giorno !== g) { if (g !== null) { %></ul></div><% } g = giorno; %>
   <div class="giorno"><%= giorno %></div><div class="card" style="padding:6px 18px"><ul class="storia">
 <% } %>
-  <li><span class="pt"></span><div><span class="t"><%= m.tipo %></span> · <a href="/asset/<%= m.asset_id %>"><%= m.codice %></a><% if (!m.automatico) { %> <span class="badge">manuale</span><% } %>
+  <li><span class="pt"></span><div><span class="t"><%= m.tipo %></span> · <a href="/asset/<%= m.asset_id %>"><%= nomeAsset(m) %></a><%= m.cespite ? ' · ' + cesp(m.cespite) : '' %><% if (!m.automatico) { %> <span class="badge">manuale</span><% } %>
     <div class="s"><% if (m.da || m.a) { %><%= m.da || '—' %> → <%= m.a || '—' %><% } %><% if (m.stato_prima || m.stato_dopo) { %><%= (m.da || m.a) ? ' · ' : '' %><%= m.stato_prima || '—' %> → <%= m.stato_dopo || '—' %><% } %></div>
     <% if (m.note && !/^\(automatico\)/.test(m.note)) { %><div class="s"><%= m.note %></div><% } %></div></li>
 <% }) %><% if (g !== null) { %></ul></div><% } %>

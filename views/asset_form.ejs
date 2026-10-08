@@ -1,5 +1,5 @@
-<%- include('_head', {titolo: nuovo ? 'Nuovo asset' : 'Modifica ' + a.codice}) %>
-<h1><%= nuovo ? 'Nuovo asset' : 'Modifica ' + a.codice %></h1>
+<%- include('_head', {titolo: nuovo ? 'Nuovo asset' : 'Modifica ' + nomeAsset(a)}) %>
+<h1><%= nuovo ? 'Nuovo asset' : 'Modifica ' + nomeAsset(a) %></h1>
 <form method="post" class="card"><input type="hidden" name="_csrf" value="<%= csrf %>">
 <div class="form">
   <%- include('_sel', {nome:'tipologia', label:'Tipologia', opzioni: tipologie.map(t=>({v:t,l:t})), valore: a.tipologia, vuoto:false}) %>

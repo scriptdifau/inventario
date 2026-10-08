@@ -14,7 +14,7 @@
     <span class="tondo"><%- include('_icon', {tipo: 'SIM'}) %></span>
     <span><span class="t"><%= r.numero || 'senza numero' %></span><br><span class="s"><%= r.codice %> · <%= r.operatore %></span></span>
     <span class="chi"><% if (r.persona) { %><%- include('_avatar', {nome: r.persona}) %><span class="nome"><%= r.persona %></span><% } else { %><span class="mut">—</span><% } %></span>
-    <span class="s"><%= r.piano %><%= r.asset_codice ? ' · ' + r.asset_codice : '' %></span>
+    <span class="s"><%= [r.piano, [r.tel_marca, r.tel_modello].filter(Boolean).join(' ')].filter(Boolean).join(' · ') %></span>
     <span class="n"><%= r.costo_mensile ? euro(r.costo_mensile) + '/mese' : '' %></span>
     <span><%- include('_badge', {stato: r.stato}) %></span>
   </a>

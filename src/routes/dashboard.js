@@ -2,15 +2,6 @@ const router = require('express').Router();
 const { query } = require('../db');
 const { inviaXlsx, num, vuota } = require('../export');
 const { slug: slugAz } = require('../albero');
-const { ordine, t, tn } = require('../ordina');
-
-const ORD_AV = {
-  esito: { etichetta: 'Esito', col: ["CASE v.antivirus WHEN 'Mancante' THEN 0 WHEN 'Da verificare' THEN 1 ELSE 2 END", tn('p.cognome'), tn('p.nome')] },
-  asset: { etichetta: 'Asset', col: ['v.codice'] },
-  persona: { etichetta: 'Persona', col: [tn('p.cognome'), tn('p.nome')] },
-  report: { etichetta: 'Nel report', col: [t('v.dispositivo_report')] },
-  visto: { etichetta: 'Ultimo rilevato', col: ['v.ultimo_rilevato'] },
-};
 
 router.get('/', async (req, res, next) => {
   try {
@@ -20,8 +11,9 @@ router.get('/', async (req, res, next) => {
              FROM v_riepilogo WHERE totale > 0 ORDER BY azienda, tipologia`),
       query('SELECT azienda, anno, n_asset, valore FROM v_acquisti_per_anno ORDER BY anno DESC, azienda'),
       query(`SELECT antivirus, count(*)::int AS n FROM v_controllo_antivirus GROUP BY antivirus ORDER BY antivirus`),
-      query(`SELECT codice, tipologia, assegnato_a, modello FROM v_asset_vivi WHERE stato = 'Da verificare' ORDER BY codice`),
-      query(`SELECT m.data, m.tipo, a.codice, m.stato_prima, m.stato_dopo FROM movimento m JOIN asset a ON a.id = m.asset_id
+      query(`SELECT id, tipologia, assegnato_a, marca, modello, cespite FROM v_asset_vivi WHERE stato = 'Da verificare' ORDER BY id`),
+      query(`SELECT m.data, m.tipo, a.id AS asset_id, a.tipologia, a.marca, a.modello, c.numero AS cespite, m.stato_prima, m.stato_dopo
+             FROM movimento m JOIN asset a ON a.id = m.asset_id LEFT JOIN cespite c ON c.id = a.cespite_id
              ORDER BY m.data DESC, m.id DESC LIMIT 10`),
     ]);
     if (vuota(req)) {
@@ -69,26 +61,5 @@ router.get('/', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-async function antivirusElenco(req, res, next) {
-  try {
-    const { azienda = '', tipologia = '' } = req.query;
-    const p = []; const w = [];
-    if (azienda) { p.push(azienda); w.push(`v.azienda = $${p.length}`); }
-    if (tipologia) { p.push(tipologia); w.push(`a.tipologia = $${p.length}`); }
-    const ord = ordine(req, ORD_AV, 'esito', 'v.codice');
-    const r = await query(`SELECT v.*, a.tipologia FROM v_controllo_antivirus v JOIN asset a ON a.codice = v.codice LEFT JOIN persona p ON p.id = a.persona_id
-      ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY ${ord.sql}`, p);
-    const imp = await query('SELECT importato, file_nome FROM antivirus_import ORDER BY id DESC LIMIT 1');
-    if (vuota(req)) {
-      return inviaXlsx(res, 'antivirus', [{ nome: 'Controllo antivirus', righe: r.rows, colonne: [
-        { h: 'ID', v: (x) => x.codice }, { h: 'Azienda', v: (x) => x.azienda }, { h: 'Stato asset', v: (x) => x.stato },
-        { h: 'Assegnato a', v: (x) => x.assegnato_a }, { h: 'Hostname', v: (x) => x.hostname }, { h: 'Antivirus', v: (x) => x.antivirus },
-        { h: 'Dispositivo nel report', v: (x) => x.dispositivo_report }, { h: 'Ultimo rilevato', v: (x) => x.ultimo_rilevato, t: 'dataora' }] }]);
-    }
-    res.render('antivirus', { ord, righe: r.rows, ultimo: imp.rows[0] });
-  } catch (e) { next(e); }
-}
-router.get('/antivirus', antivirusElenco);
 
 module.exports = router;
-module.exports.antivirusElenco = antivirusElenco;

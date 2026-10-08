@@ -5,7 +5,7 @@ const { ordine, t, tn } = require('../ordina');
 
 const ORD_ASSET = {
   dispositivo: { etichetta: 'Dispositivo', col: [t('marca'), t('modello')] },
-  codice: { etichetta: 'Codice', col: ['id'] },
+  cespite: { etichetta: 'Cespite', col: ['cespite'] },
   persona: { etichetta: 'Persona', col: ['k_cognome', 'k_nome'] },
   stato: { etichetta: 'Stato', col: ['lower(stato)'] },
   azienda: { etichetta: 'Azienda', col: ['lower(azienda)'] },
@@ -26,29 +26,32 @@ async function lookup() {
 
 async function elenco(req, res, next) {
   try {
-    const { q = '', stato = '', tipologia = '', azienda = '', uscita = '' } = req.query;
+    const { q = '', stato = '', tipologia = '', azienda = '', uscita = '', av = '' } = req.query;
     const where = []; const p = [];
     if (!uscita) where.push('NOT fuori');
-    if (q) { p.push(`%${q}%`); where.push(`(codice ILIKE $${p.length} OR coalesce(assegnato_a,'') ILIKE $${p.length} OR coalesce(modello,'') ILIKE $${p.length}
+    if (q) { p.push(`%${q}%`); where.push(`(cespite::text ILIKE $${p.length} OR codice ILIKE $${p.length} OR coalesce(assegnato_a,'') ILIKE $${p.length} OR coalesce(modello,'') ILIKE $${p.length}
       OR coalesce(marca,'') ILIKE $${p.length} OR coalesce(serial,'') ILIKE $${p.length} OR coalesce(hostname,'') ILIKE $${p.length})`); }
     if (stato) { p.push(stato); where.push(`stato = $${p.length}`); }
     if (tipologia) { p.push(tipologia); where.push(`tipologia = $${p.length}`); }
     if (azienda) { p.push(azienda); where.push(`azienda = $${p.length}`); }
+    if (av === 'problemi') where.push("av_stato IS NOT NULL AND av_stato <> 'OK'");
+    if (av === 'ok') where.push("av_stato = 'OK'");
     const ord = ordine(req, ORD_ASSET, 'persona', 'id');
     // k_cognome/k_nome: ordine per cognome della persona (v_asset ha solo "Nome Cognome")
-    const r = await query(`SELECT * FROM (SELECT v.*, ${tn('pe.cognome')} AS k_cognome, ${tn('pe.nome')} AS k_nome
-        FROM v_asset v LEFT JOIN asset a ON a.id = v.id LEFT JOIN persona pe ON pe.id = a.persona_id) x
+    const r = await query(`SELECT * FROM (SELECT v.*, ${tn('pe.cognome')} AS k_cognome, ${tn('pe.nome')} AS k_nome, av.antivirus AS av_stato, av.ultimo_rilevato AS av_visto
+        FROM v_asset v LEFT JOIN asset a ON a.id = v.id LEFT JOIN persona pe ON pe.id = a.persona_id LEFT JOIN v_controllo_antivirus av ON av.codice = v.codice) x
       ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY ${ord.sql}`, p);
     if (vuota(req)) {
       return inviaXlsx(res, 'asset', [{ nome: 'Asset', righe: r.rows, colonne: [
-        { h: 'ID', v: (x) => x.codice }, { h: 'Tipologia', v: (x) => x.tipologia }, { h: 'Stato', v: (x) => x.stato },
+        { h: 'N. cespite', v: (x) => x.cespite, t: 'num' }, { h: 'Tipologia', v: (x) => x.tipologia }, { h: 'Stato', v: (x) => x.stato },
         { h: 'Assegnato a', v: (x) => x.assegnato_a }, { h: 'Marca', v: (x) => x.marca }, { h: 'Modello', v: (x) => x.modello },
         { h: 'RAM (GB)', v: (x) => x.ram_gb, t: 'num' }, { h: 'Storage (GB)', v: (x) => x.storage_gb, t: 'num' },
         { h: 'Sistema operativo', v: (x) => x.sistema_operativo }, { h: 'Serial', v: (x) => x.serial }, { h: 'Hostname', v: (x) => x.hostname },
-        { h: 'Azienda', v: (x) => x.azienda }, { h: 'N. cespite', v: (x) => x.cespite, t: 'num' }, { h: 'Fornitore', v: (x) => x.fornitore },
+        { h: 'Antivirus', v: (x) => (x.av_stato === 'OK' ? 'Sì' : x.av_stato === 'Mancante' ? 'No' : x.av_stato) },
+        { h: 'Azienda', v: (x) => x.azienda }, { h: 'Fornitore', v: (x) => x.fornitore },
         { h: 'N. fattura', v: (x) => x.n_fattura }, { h: 'Data acquisto', v: (x) => x.data_acquisto, t: 'data' },
         { h: 'Importo €', v: (x) => num(x.importo), t: 'euro' }, { h: 'Data dismissione', v: (x) => x.data_dismissione, t: 'data' },
-        { h: 'Note', v: (x) => x.note }] }]);
+        { h: 'Note', v: (x) => x.note }, { h: 'Codice interno', v: (x) => x.codice }] }]);
     }
     // conteggi per stato (asset in vita) per i filtri rapidi
     const cw = ['NOT fuori']; const cp = [];
@@ -56,7 +59,14 @@ async function elenco(req, res, next) {
     if (tipologia) { cp.push(tipologia); cw.push(`tipologia = $${cp.length}`); }
     const cs = await query(`SELECT stato, count(*)::int AS n FROM v_asset WHERE ${cw.join(' AND ')} GROUP BY stato`, cp);
     const conteggi = Object.fromEntries(cs.rows.map((x) => [x.stato, x.n]));
-    res.render('asset_lista', { ord, righe: r.rows, filtri: { q, stato, tipologia, azienda, uscita }, conteggi, ...(await lookup()) });
+    // antivirus: quanti PC/server attivi hanno problemi, nell'ambito della pagina; data dell'ultimo report
+    const aw = []; const ap = [];
+    if (azienda) { ap.push(azienda); aw.push(`v.azienda = $${ap.length}`); }
+    if (tipologia) { ap.push(tipologia); aw.push(`a.tipologia = $${ap.length}`); }
+    const avc = (await query(`SELECT count(*)::int AS tot, count(*) FILTER (WHERE v.antivirus <> 'OK')::int AS problemi
+      FROM v_controllo_antivirus v JOIN asset a ON a.codice = v.codice ${aw.length ? 'WHERE ' + aw.join(' AND ') : ''}`, ap)).rows[0];
+    const rep = (await query('SELECT importato FROM antivirus_import ORDER BY id DESC LIMIT 1')).rows[0];
+    res.render('asset_lista', { ord, righe: r.rows, filtri: { q, stato, tipologia, azienda, uscita, av }, conteggi, avc, reportAv: rep && rep.importato, ...(await lookup()) });
   } catch (e) { next(e); }
 }
 router.get('/', elenco);
@@ -115,13 +125,14 @@ router.get('/:id(\\d+)', async (req, res, next) => {
   try {
     const a = await query('SELECT * FROM v_asset WHERE id = $1', [req.params.id]);
     if (!a.rows[0]) return next();
-    const [mov, sim] = await Promise.all([
+    const [mov, sim, avs] = await Promise.all([
       query(`SELECT m.*, d.nome || ' ' || d.cognome AS da, t.nome || ' ' || t.cognome AS a FROM movimento m
              LEFT JOIN persona d ON d.id = m.da_persona_id LEFT JOIN persona t ON t.id = m.a_persona_id
              WHERE m.asset_id = $1 ORDER BY m.data DESC, m.id DESC`, [req.params.id]),
       query('SELECT id, codice, numero, stato FROM sim WHERE asset_id = $1', [req.params.id]),
+      query('SELECT antivirus, dispositivo_report, ultimo_rilevato FROM v_controllo_antivirus WHERE codice = $1', [a.rows[0].codice]),
     ]);
-    res.render('asset_scheda', { a: a.rows[0], mov: mov.rows, sim: sim.rows });
+    res.render('asset_scheda', { a: a.rows[0], mov: mov.rows, sim: sim.rows, av: avs.rows[0] || null });
   } catch (e) { next(e); }
 });
 

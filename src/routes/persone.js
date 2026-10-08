@@ -68,7 +68,8 @@ router.get('/:id(\\d+)', async (req, res, next) => {
     const p = await query(`SELECT p.*, az.nome AS azienda FROM persona p LEFT JOIN azienda az ON az.id = p.azienda_id WHERE p.id = $1`, [req.params.id]);
     if (!p.rows[0]) return next();
     const [asset, sim] = await Promise.all([
-      query(`SELECT v.id, v.codice, v.tipologia, v.marca, v.modello, v.stato, v.hostname FROM v_asset v JOIN asset a ON a.id = v.id
+      query(`SELECT v.id, v.tipologia, v.marca, v.modello, v.stato, v.hostname, v.cespite, av.antivirus AS av_stato, av.ultimo_rilevato AS av_visto
+             FROM v_asset v JOIN asset a ON a.id = v.id LEFT JOIN v_controllo_antivirus av ON av.codice = v.codice
              WHERE a.persona_id = $1 AND NOT v.fuori ORDER BY v.id`, [req.params.id]),
       query('SELECT id, codice, numero, stato, operatore FROM sim WHERE persona_id = $1 ORDER BY id', [req.params.id]),
     ]);

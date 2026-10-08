@@ -37,6 +37,9 @@ function creaApp() {
   app.use((req, res, next) => {
     res.locals.utente = req.session.utente;
     res.locals.path = req.path;
+    // l'asset si riconosce da marca/modello e dal numero di cespite (il codice AST è interno e non si mostra)
+    res.locals.nomeAsset = (r) => [r.marca, r.modello].filter(Boolean).join(' ') || r.tipologia || 'Asset';
+    res.locals.cesp = (n) => (n === null || n === undefined || n === '' ? '' : 'Cespite ' + n);
     // URL della pagina con filtri e ordinamento attuali, cambiando solo ciò che serve (valori vuoti tolti)
     const percorso = req.path; const q0 = { ...req.query };
     res.locals.urlCon = (extra = {}) => {

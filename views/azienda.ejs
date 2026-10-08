@@ -5,7 +5,7 @@
   <% az.tipologie.forEach(t => { const b = '/az/' + az.slug + '/' + t.slug; %>
     <a class="pia" href="<%= b %>"><span class="tondo"><%- include('_icon', {tipo: t.nome, dim: 22}) %></span>
       <span class="q"><%= t.vivi %></span><span class="e"><%= t.nome %></span>
-      <% if (t.antivirus && t.antivirus.problemi) { %><span class="badge st-da-verificare">antivirus: <%= t.antivirus.problemi %></span><% } %>
+      <% if (t.antivirus && t.antivirus.problemi) { %><span class="badge st-da-verificare" title="PC attivi senza antivirus o da verificare"><%- include('_av', {stato: 'Mancante'}) %> <%= t.antivirus.problemi %></span><% } %>
       <% if (t.sim !== null) { %><span class="mut" style="font-size:.8rem"><%= t.sim %> SIM</span><% } %></a>
   <% }) %>
   <a class="pia" href="/az/<%= az.slug %>/persone"><span class="tondo"><svg class="ico" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 5.2a3 3 0 0 1 0 5.6M21 20c0-2.6-1.6-4.8-4-5.6"/></svg></span>
@@ -15,10 +15,10 @@
   <section class="card"><h2>Richiede attenzione</h2>
     <% if (!attenzione.length) { %><div class="vuoto">Nessun asset da verificare.</div><% } %>
     <% attenzione.forEach(r => { %><a class="tip" style="grid-template-columns:28px 1fr auto;color:inherit" href="/asset/<%= r.id %>"><span class="tondo"><%- include('_icon', {tipo: r.tipologia, dim: 16}) %></span>
-      <span><b><%= r.codice %></b> <span class="mut"><%= [r.marca, r.modello].filter(Boolean).join(' ') %></span><br><span class="mut" style="font-size:.85rem"><%= r.persona || 'senza assegnatario' %></span></span><%- include('_badge', {stato: 'Da verificare'}) %></a><% }) %>
+      <span><b><%= nomeAsset(r) %></b><br><span class="mut" style="font-size:.85rem"><%= [cesp(r.cespite), r.persona || 'senza assegnatario'].filter(Boolean).join(' · ') %></span></span><%- include('_badge', {stato: 'Da verificare'}) %></a><% }) %>
   </section>
   <section class="card"><h2>Ultimi movimenti</h2>
-    <ul class="storia"><% recenti.forEach(m => { %><li><span class="pt"></span><div><span class="t"><%= m.tipo %></span> · <a href="/asset/<%= m.asset_id %>"><%= m.codice %></a><div class="s"><%= data(m.data) %></div></div></li><% }) %></ul>
+    <ul class="storia"><% recenti.forEach(m => { %><li><span class="pt"></span><div><span class="t"><%= m.tipo %></span> · <a href="/asset/<%= m.asset_id %>"><%= nomeAsset(m) %></a><%= m.cespite ? ' · ' + cesp(m.cespite) : '' %><div class="s"><%= data(m.data) %></div></div></li><% }) %></ul>
   </section>
 </div>
 <%- include('_foot') %>
