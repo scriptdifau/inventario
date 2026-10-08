@@ -20,8 +20,13 @@ function creaApp() {
   });
   app.get('/healthz', (req, res) => res.send('ok'));
 
+  // Dietro il proxy di SiteGround la richiesta arriva all'app in HTTP senza X-Forwarded-Proto: la libreria dei cookie
+  // si rifiuta (in silenzio) di impostare un cookie secure e il login fallisce. Se BASE_URL è https, il TLS è terminato dal proxy.
+  if (prod && /^https:/i.test(process.env.BASE_URL || '')) {
+    app.use((req, res, next) => { Object.defineProperty(req, 'protocol', { value: 'https', configurable: true }); next(); });
+  }
   app.use(cookieSession({ name: 'inv', keys: [process.env.SESSION_SECRET || 'solo-sviluppo'], maxAge: 8 * 3600 * 1000,
-    httpOnly: true, sameSite: 'lax', secure: prod }));
+    httpOnly: true, sameSite: 'lax', secure: prod, }));
   app.use(express.urlencoded({ extended: false, limit: '5mb' }));
   auth.routes(app);
   app.use(auth.richiediLogin);
