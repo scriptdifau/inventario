@@ -71,4 +71,13 @@ router.post('/:id(\\d+)/modifica', async (req, res, next) => {
   catch (e) { req.body.id = req.params.id; errForm(e, req, res, next, false); }
 });
 
+router.post('/:id(\\d+)/elimina', async (req, res, next) => {
+  try {
+    const s = (await query('SELECT asset_id, azienda_id FROM sim WHERE id = $1', [req.params.id])).rows[0];
+    if (!s) return next();
+    await query('DELETE FROM sim WHERE id = $1', [req.params.id]);
+    res.redirect(destinazione(res, s));
+  } catch (e) { next(e); }
+});
+
 module.exports = router;

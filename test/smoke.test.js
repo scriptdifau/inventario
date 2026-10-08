@@ -301,3 +301,41 @@ test('numeri di fattura senza ".0": dati di partenza e import da CSV', { skip },
   assert.match(await r.text(), /0 fatture nuove/);
   assert.strictEqual((await query('SELECT count(*)::int n FROM fattura')).rows[0].n, prima);
 });
+
+test('elimina: asset (storico e SIM scollegate), persona (solo senza asset), SIM; serve il CSRF', { skip }, async () => {
+  const { query } = require('../src/db');
+  const az = (await query('SELECT id FROM azienda ORDER BY id LIMIT 1')).rows[0].id;
+  const pe = (await query(`INSERT INTO persona (nome, cognome, stato) VALUES ('Zz', 'Elimina', 'Attivo') RETURNING id`)).rows[0].id;
+  const as = (await query(`INSERT INTO asset (tipologia, stato, azienda_id, modello) VALUES ('Telefono', 'Disponibile', $1, 'Zz tel') RETURNING id`, [az])).rows[0].id;
+  await query(`UPDATE asset SET persona_id = $1, stato = 'Assegnato' WHERE id = $2`, [pe, as]); // il trigger crea il movimento
+  const sim = (await query(`INSERT INTO sim (stato, asset_id, persona_id) VALUES ('Attiva', $1, $2) RETURNING id`, [as, pe])).rows[0].id;
+  assert.ok((await query('SELECT count(*)::int n FROM movimento WHERE asset_id = $1', [as])).rows[0].n > 0);
+  // senza token: rifiutato
+  assert.strictEqual((await post(`/asset/${as}/elimina`, {})).status, 403);
+  // la scheda ha il pulsante
+  assert.match(await (await req(`/asset/${as}`)).text(), new RegExp(`action="/asset/${as}/elimina"`));
+  // persona con asset: bloccata
+  let t = await csrf(`/persone/${pe}`);
+  let r = await post(`/persone/${pe}/elimina`, { _csrf: t });
+  assert.strictEqual(r.status, 400); assert.match(await r.text(), /ha ancora 1 asset/);
+  assert.strictEqual((await query('SELECT count(*)::int n FROM persona WHERE id = $1', [pe])).rows[0].n, 1);
+  // asset: eliminato con lo storico, la SIM resta senza telefono e con l'azienda
+  t = await csrf(`/asset/${as}`);
+  r = await post(`/asset/${as}/elimina`, { _csrf: t });
+  assert.strictEqual(r.status, 302);
+  assert.strictEqual((await query('SELECT count(*)::int n FROM asset WHERE id = $1', [as])).rows[0].n, 0);
+  assert.strictEqual((await query('SELECT count(*)::int n FROM movimento WHERE asset_id = $1', [as])).rows[0].n, 0);
+  const s = (await query('SELECT asset_id, azienda_id FROM sim WHERE id = $1', [sim])).rows[0];
+  assert.strictEqual(s.asset_id, null); assert.strictEqual(s.azienda_id, az);
+  assert.strictEqual((await post(`/asset/${as}/elimina`, { _csrf: t })).status, 404);
+  // SIM: eliminata
+  t = await csrf(`/sim/${sim}/modifica`);
+  assert.match(await (await req(`/sim/${sim}/modifica`)).text(), new RegExp(`action="/sim/${sim}/elimina"`));
+  assert.strictEqual((await post(`/sim/${sim}/elimina`, { _csrf: t })).status, 302);
+  assert.strictEqual((await query('SELECT count(*)::int n FROM sim WHERE id = $1', [sim])).rows[0].n, 0);
+  // persona senza asset: eliminata; i movimenti degli altri asset non la citano più
+  t = await csrf(`/persone/${pe}`);
+  assert.strictEqual((await post(`/persone/${pe}/elimina`, { _csrf: t })).status, 302);
+  assert.strictEqual((await query('SELECT count(*)::int n FROM persona WHERE id = $1', [pe])).rows[0].n, 0);
+  assert.strictEqual((await post(`/persone/${pe}/elimina`, { _csrf: t })).status, 404);
+});

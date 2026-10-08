@@ -202,3 +202,4 @@ th .ordc{color:inherit}th .ordc:hover{color:var(--fg);text-decoration:none}th .o
 .dev{display:flex;flex-direction:column;gap:3px;font-size:.88rem}.dv{display:flex;align-items:center;gap:7px;min-width:0}.dv>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dv b{font-weight:600}.dv.no{color:var(--mut);opacity:.6}
 @media(max-width:820px){.r-pers{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n b" "c c" "t t"}.r-pers>:nth-child(1){grid-area:n}.r-pers>:nth-child(2){grid-area:c}.r-pers>:nth-child(3){grid-area:t}.r-pers>:nth-child(4){display:none}.r-pers>:nth-child(5){grid-area:b}}
 .r-pers .chi>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+button.danger,.btn.danger{color:var(--bad);border-color:var(--bad-bg)}button.danger:hover,.btn.danger:hover{border-color:var(--bad);background:var(--bad-bg)}
