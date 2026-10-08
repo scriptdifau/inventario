@@ -1,6 +1,7 @@
 <%# intestazione cliccabile: griglia (classe della riga), colonne [{k, label, cls}] (k vuoto = cella senza ordinamento), ord corrente %>
 <div class="testa <%= griglia %>">
-<% colonne.forEach(c => { if (!c.k) { %><span></span><% } else { const attiva = ord.chiave === c.k; %>
+<% colonne.forEach(c => { if (!c.k) { %><span></span><% } else { const attiva = ord.chiave === c.k; %><span class="tcol">
   <a class="<%= c.cls || '' %> <%= attiva ? 'on' : '' %>" href="<%= urlCon({ord: c.k, dir: attiva && ord.dir === 'asc' ? 'desc' : 'asc'}) %>" title="Ordina per <%= c.label %>"><%= c.label %><% if (attiva) { %> <b><%= ord.dir === 'asc' ? '▲' : '▼' %></b><% } %></a>
+<% if (c.alt) { const at = ord.chiave === c.alt.k; %> <a class="<%= at ? 'on' : '' %>" href="<%= urlCon({ord: c.alt.k, dir: at && ord.dir === 'asc' ? 'desc' : 'asc'}) %>" title="Ordina per <%= c.alt.label %>">/ <%= c.alt.label %><% if (at) { %> <b><%= ord.dir === 'asc' ? '▲' : '▼' %></b><% } %></a><% } %></span>
 <% } }) %>
 </div>

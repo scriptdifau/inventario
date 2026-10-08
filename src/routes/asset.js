@@ -6,7 +6,8 @@ const { ordine, t, tn } = require('../ordina');
 const ORD_ASSET = {
   dispositivo: { etichetta: 'Dispositivo', col: [t('marca'), t('modello')] },
   cespite: { etichetta: 'Cespite', col: ['cespite'] },
-  persona: { etichetta: 'Persona', col: ['k_cognome', 'k_nome'] },
+  persona: { etichetta: 'Persona (cognome)', col: ['k_cognome', 'k_nome'] },
+  nome: { etichetta: 'Persona (nome)', col: ['k_nome', 'k_cognome'] },
   stato: { etichetta: 'Stato', col: ['lower(stato)'] },
   azienda: { etichetta: 'Azienda', col: ['lower(azienda)'] },
   importo: { etichetta: 'Importo', col: ['importo'] },

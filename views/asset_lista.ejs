@@ -23,7 +23,7 @@
 </form>
 
 <%- include('_ordsel') %>
-<%- include('_testa', {griglia: 'r-asset', colonne: [{k: ''}, {k: 'dispositivo', label: 'Dispositivo'}, {k: 'persona', label: 'Persona'}, {k: 'stato', label: 'Stato'}, {k: 'azienda', label: 'Azienda'}, {k: 'importo', label: 'Importo', cls: 'n'}]}) %>
+<%- include('_testa', {griglia: 'r-asset', colonne: [{k: ''}, {k: 'dispositivo', label: 'Dispositivo'}, {k: 'persona', label: 'Cognome', alt: {k: 'nome', label: 'Nome'}}, {k: 'stato', label: 'Stato'}, {k: 'azienda', label: 'Azienda'}, {k: 'importo', label: 'Importo', cls: 'n'}]}) %>
 <div class="righe">
 <% if (!righe.length) { %><div class="vuoto">Nessun asset con questi filtri.</div><% } %>
 <% righe.forEach(r => { %>
