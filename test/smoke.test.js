@@ -153,3 +153,48 @@ test('albero per azienda: pagine, filtri fissi, antivirus sotto PC/Server, SIM s
   const nuovo = await (await req('/asset/nuovo?azienda_id=1&tipologia=Mac')).text();
   assert.match(nuovo, /<option value="Mac" selected>/);
 });
+
+test('ordinamento: predefinito per persona (cognome), colonne ordinabili, valori non ammessi ignorati, Excel nello stesso ordine', { skip }, async () => {
+  const { query } = require('../src/db');
+  const ids = async (url, classe = 'r-asset') => [...(await (await req(url)).text()).matchAll(new RegExp(`class="riga ${classe}" href="/(?:asset|sim)/(\\d+)`, 'g'))].map((m) => +m[1]);
+
+  // predefinito: per cognome della persona, chi non ha una persona in fondo
+  const atteso = (await query(`SELECT a.id FROM asset a JOIN stato_asset s ON s.nome = a.stato LEFT JOIN persona p ON p.id = a.persona_id
+    WHERE NOT s.fuori ORDER BY lower(p.cognome) NULLS LAST, lower(p.nome) NULLS LAST, a.id`)).rows.map((r) => r.id);
+  assert.deepStrictEqual(await ids('/asset'), atteso);
+  const senza = new Set((await query('SELECT id FROM asset WHERE persona_id IS NULL')).rows.map((r) => r.id));
+  const ordine = await ids('/asset'); const primo = ordine.findIndex((i) => senza.has(i));
+  assert.ok(primo > 0 && ordine.slice(primo).every((i) => senza.has(i)), 'gli asset senza persona sono tutti in fondo');
+  // anche in senso inverso gli assegnati restano per primi
+  const inverso = await ids('/asset?ord=persona&dir=desc'); const p2 = inverso.findIndex((i) => senza.has(i));
+  assert.ok(p2 > 0 && inverso.slice(p2).every((i) => senza.has(i)));
+  // sequenza dei cognomi (senza ripetizioni) in senso inverso = esatto contrario dell'ordine crescente
+  const cognome = (await query('SELECT a.id, lower(p.cognome) || \'|\' || lower(p.nome) AS c FROM asset a JOIN persona p ON p.id = a.persona_id')).rows.reduce((m, r) => m.set(r.id, r.c), new Map());
+  const seq = (lista) => lista.map((i) => cognome.get(i)).filter(Boolean).filter((c, k, a) => k === 0 || a[k - 1] !== c);
+  assert.deepStrictEqual(seq(inverso), seq(ordine).reverse());
+
+  // importo decrescente e codice
+  const imp = await ids('/asset?ord=importo&dir=desc');
+  const val = (await query('SELECT id, importo FROM asset')).rows.reduce((m, r) => m.set(r.id, r.importo === null ? null : Number(r.importo)), new Map());
+  const noti = imp.map((i) => val.get(i)).filter((v) => v !== null);
+  assert.ok(noti.every((v, k) => k === 0 || noti[k - 1] >= v), 'importi in ordine decrescente');
+  const cod = await ids('/asset?ord=codice&dir=asc'); assert.deepStrictEqual(cod, [...cod].sort((a, b) => a - b));
+
+  // valori non ammessi: stesso ordine del predefinito, nessun errore
+  assert.deepStrictEqual(await ids("/asset?ord=boh&dir=su"), atteso);
+  assert.strictEqual((await req("/asset?ord=persona';drop table asset;--&dir=desc")).status, 200);
+  assert.ok((await query('SELECT count(*)::int n FROM asset')).rows[0].n > 0);
+
+  // l'ordine vale anche per le pagine per azienda, per le SIM e resta nei link
+  const pc = await ids('/az/cart-armata/pc?ord=importo&dir=asc');
+  assert.ok(pc.length > 0);
+  const html = await (await req('/az/cart-armata/pc?ord=importo&dir=asc&stato=Assegnato')).text();
+  assert.match(html, /href="\/az\/cart-armata\/pc\?ord=importo&amp;dir=desc&amp;stato=Assegnato"/);   // clic sulla colonna attiva: inverte
+  assert.match(html, /<b>▲<\/b>/);
+  const sim = await ids('/sim?ord=persona&dir=asc', 'r-sim'); assert.strictEqual(sim.length, 26);
+
+  // Excel nello stesso ordine della pagina
+  const xl = await req('/asset?ord=importo&dir=desc&xlsx=1');
+  assert.strictEqual(xl.status, 200);
+  assert.match(xl.headers.get('content-type'), /spreadsheetml/);
+});

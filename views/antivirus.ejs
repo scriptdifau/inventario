@@ -9,6 +9,8 @@
   <div><b class="warn"><%= n('Da verificare') %></b><span>da verificare (fermi da più di 20 giorni)</span></div>
   <div><b class="bad"><%= n('Mancante') %></b><span>assenti dal report</span></div>
 </div>
+<%- include('_ordsel') %>
+<%- include('_testa', {griglia: 'r-av', colonne: [{k: 'esito', label: 'Esito'}, {k: 'asset', label: 'Asset'}, {k: 'persona', label: 'Persona'}, {k: 'report', label: 'Nel report'}, {k: 'visto', label: 'Ultimo rilevato', cls: 'n'}]}) %>
 <div class="righe">
 <% righe.forEach(r => { %>
   <a class="riga r-av" href="/asset?q=<%= r.codice %>">

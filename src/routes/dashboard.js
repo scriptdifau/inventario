@@ -2,6 +2,15 @@ const router = require('express').Router();
 const { query } = require('../db');
 const { inviaXlsx, num, vuota } = require('../export');
 const { slug: slugAz } = require('../albero');
+const { ordine, t, tn } = require('../ordina');
+
+const ORD_AV = {
+  esito: { etichetta: 'Esito', col: ["CASE v.antivirus WHEN 'Mancante' THEN 0 WHEN 'Da verificare' THEN 1 ELSE 2 END", tn('p.cognome'), tn('p.nome')] },
+  asset: { etichetta: 'Asset', col: ['v.codice'] },
+  persona: { etichetta: 'Persona', col: [tn('p.cognome'), tn('p.nome')] },
+  report: { etichetta: 'Nel report', col: [t('v.dispositivo_report')] },
+  visto: { etichetta: 'Ultimo rilevato', col: ['v.ultimo_rilevato'] },
+};
 
 router.get('/', async (req, res, next) => {
   try {
@@ -66,8 +75,9 @@ async function antivirusElenco(req, res, next) {
     const p = []; const w = [];
     if (azienda) { p.push(azienda); w.push(`v.azienda = $${p.length}`); }
     if (tipologia) { p.push(tipologia); w.push(`a.tipologia = $${p.length}`); }
-    const r = await query(`SELECT v.*, a.tipologia FROM v_controllo_antivirus v JOIN asset a ON a.codice = v.codice
-      ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY (v.antivirus = 'OK'), v.codice`, p);
+    const ord = ordine(req, ORD_AV, 'esito', 'v.codice');
+    const r = await query(`SELECT v.*, a.tipologia FROM v_controllo_antivirus v JOIN asset a ON a.codice = v.codice LEFT JOIN persona p ON p.id = a.persona_id
+      ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY ${ord.sql}`, p);
     const imp = await query('SELECT importato, file_nome FROM antivirus_import ORDER BY id DESC LIMIT 1');
     if (vuota(req)) {
       return inviaXlsx(res, 'antivirus', [{ nome: 'Controllo antivirus', righe: r.rows, colonne: [
@@ -75,7 +85,7 @@ async function antivirusElenco(req, res, next) {
         { h: 'Assegnato a', v: (x) => x.assegnato_a }, { h: 'Hostname', v: (x) => x.hostname }, { h: 'Antivirus', v: (x) => x.antivirus },
         { h: 'Dispositivo nel report', v: (x) => x.dispositivo_report }, { h: 'Ultimo rilevato', v: (x) => x.ultimo_rilevato, t: 'dataora' }] }]);
     }
-    res.render('antivirus', { righe: r.rows, ultimo: imp.rows[0] });
+    res.render('antivirus', { ord, righe: r.rows, ultimo: imp.rows[0] });
   } catch (e) { next(e); }
 }
 router.get('/antivirus', antivirusElenco);

@@ -23,6 +23,9 @@ Passo 1 (HANDOFF) fatto: asset (elenco/scheda/modifica/nuovo), persone, SIM, mov
 ## Struttura delle pagine
 Albero a sinistra: **Dashboard** > **Cart'armata** / **Le parole** > una pagina per ogni tipologia di asset (PC, Mac, Tablet, Telefono, Server, Altro…) più **Persone**. Sotto **PC** e **Server** c'è l'**Antivirus** (solo i computer Windows attivi), sotto **Telefono** le **SIM**. In fondo: Movimenti, Cespiti ante 2018, Importa e gli elenchi completi (tutti gli asset, tutte le persone, tutte le SIM, antivirus di tutte le aziende). Indirizzi: `/az/<azienda>/<tipologia>[/antivirus|/sim]` e `/az/<azienda>/persone`. Le pagine usano gli stessi elenchi con azienda e tipologia già impostate, quindi filtri e Excel funzionano ovunque. Una persona appartiene all'azienda indicata o, se manca, a quella del suo primo asset; una SIM a quella del telefono in cui è montata.
 
+## Ordinamento
+Le liste (asset, SIM, persone, antivirus, cespiti) si ordinano cliccando l'intestazione di una colonna (di nuovo per invertire) o dal menu "Ordina per" (telefono e schede delle persone); l'ordine sta nell'indirizzo (`?ord=<colonna>&dir=asc|desc`) e vale anche per Excel. Predefinito: per **cognome** della persona (chi non ne ha, in fondo); nell'antivirus prima i problemi, poi per persona. Sono ammesse solo le colonne previste: altri valori vengono ignorati. I movimenti restano in ordine di data.
+
 ## Esportazione Excel
 Ogni vista (Dashboard, Asset, Persone, SIM, Movimenti, Antivirus, Cespiti ante 2018) ha il link **Scarica Excel**: scarica un `.xlsx` con gli stessi filtri attivi nella pagina (aggiungendo `xlsx=1` all'indirizzo). Il Movimenti scarica tutte le righe filtrate, non solo le ultime 500. Il file è generato da `src/xlsx.js`, senza dipendenze aggiuntive.
 

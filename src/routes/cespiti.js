@@ -1,12 +1,24 @@
 const router = require('express').Router();
 const { query } = require('../db');
 const { inviaXlsx, num, vuota } = require('../export');
+const { ordine, t } = require('../ordina');
+
+const ORD_CESPITI = {
+  numero: { etichetta: 'N. cespite', col: ['numero'] },
+  categoria: { etichetta: 'Categoria', col: [t('categoria')] },
+  data: { etichetta: 'Data', col: ['data'] },
+  fornitore: { etichetta: 'Fornitore', col: [t('fornitore')] },
+  descrizione: { etichetta: 'Descrizione', col: [t('descrizione')] },
+  trovare: { etichetta: 'Da trovare o eliminare', col: ['da_trovare_eliminare'] },
+  abbinare: { etichetta: 'Da abbinare', col: ['da_abbinare'] },
+};
 
 // Cespiti ante 2018: storico di sola lettura per la quadratura con l'amministrazione
 router.get('/', async (req, res, next) => {
   try {
-    const [r, t] = await Promise.all([
-      query('SELECT * FROM cespite_storico ORDER BY numero'),
+    const ord = ordine(req, ORD_CESPITI, 'numero', 'id');
+    const [r, tot] = await Promise.all([
+      query(`SELECT * FROM cespite_storico ORDER BY ${ord.sql}`),
       query('SELECT coalesce(sum(da_trovare_eliminare),0) AS te, coalesce(sum(da_abbinare),0) AS ab FROM cespite_storico'),
     ]);
     if (vuota(req)) {
@@ -16,7 +28,7 @@ router.get('/', async (req, res, next) => {
         { h: 'Da trovare o eliminare', v: (x) => num(x.da_trovare_eliminare), t: 'euro' }, { h: 'Da abbinare', v: (x) => num(x.da_abbinare), t: 'euro' },
         { h: 'Note', v: (x) => x.note }] }]);
     }
-    res.render('cespiti', { righe: r.rows, tot: t.rows[0] });
+    res.render('cespiti', { ord, righe: r.rows, tot: tot.rows[0] });
   } catch (e) { next(e); }
 });
 

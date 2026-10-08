@@ -1,6 +1,17 @@
 const router = require('express').Router();
 const { query, nul } = require('../db');
 const { inviaXlsx, num, vuota } = require('../export');
+const { ordine, t, tn } = require('../ordina');
+
+const ORD_ASSET = {
+  dispositivo: { etichetta: 'Dispositivo', col: [t('marca'), t('modello')] },
+  codice: { etichetta: 'Codice', col: ['id'] },
+  persona: { etichetta: 'Persona', col: ['k_cognome', 'k_nome'] },
+  stato: { etichetta: 'Stato', col: ['lower(stato)'] },
+  azienda: { etichetta: 'Azienda', col: ['lower(azienda)'] },
+  importo: { etichetta: 'Importo', col: ['importo'] },
+  acquisto: { etichetta: 'Data acquisto', col: ['data_acquisto'] },
+};
 
 async function lookup() {
   const [az, tip, st, pe, fo] = await Promise.all([
@@ -23,7 +34,11 @@ async function elenco(req, res, next) {
     if (stato) { p.push(stato); where.push(`stato = $${p.length}`); }
     if (tipologia) { p.push(tipologia); where.push(`tipologia = $${p.length}`); }
     if (azienda) { p.push(azienda); where.push(`azienda = $${p.length}`); }
-    const r = await query(`SELECT * FROM v_asset ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id`, p);
+    const ord = ordine(req, ORD_ASSET, 'persona', 'id');
+    // k_cognome/k_nome: ordine per cognome della persona (v_asset ha solo "Nome Cognome")
+    const r = await query(`SELECT * FROM (SELECT v.*, ${tn('pe.cognome')} AS k_cognome, ${tn('pe.nome')} AS k_nome
+        FROM v_asset v LEFT JOIN asset a ON a.id = v.id LEFT JOIN persona pe ON pe.id = a.persona_id) x
+      ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY ${ord.sql}`, p);
     if (vuota(req)) {
       return inviaXlsx(res, 'asset', [{ nome: 'Asset', righe: r.rows, colonne: [
         { h: 'ID', v: (x) => x.codice }, { h: 'Tipologia', v: (x) => x.tipologia }, { h: 'Stato', v: (x) => x.stato },
@@ -41,7 +56,7 @@ async function elenco(req, res, next) {
     if (tipologia) { cp.push(tipologia); cw.push(`tipologia = $${cp.length}`); }
     const cs = await query(`SELECT stato, count(*)::int AS n FROM v_asset WHERE ${cw.join(' AND ')} GROUP BY stato`, cp);
     const conteggi = Object.fromEntries(cs.rows.map((x) => [x.stato, x.n]));
-    res.render('asset_lista', { righe: r.rows, filtri: { q, stato, tipologia, azienda, uscita }, conteggi, ...(await lookup()) });
+    res.render('asset_lista', { ord, righe: r.rows, filtri: { q, stato, tipologia, azienda, uscita }, conteggi, ...(await lookup()) });
   } catch (e) { next(e); }
 }
 router.get('/', elenco);

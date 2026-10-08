@@ -3,8 +3,10 @@
 <div class="titolo"><h1><%= ctx ? ctx.titolo : 'SIM' %></h1><span class="mut"><%= righe.length %> risultati</span><span class="sp"></span>
   <a class="btn sec sm" href="<%= xlsUrl %>">⬇ Scarica Excel</a><a class="btn sm" href="/sim/nuova">+ Nuova SIM</a></div>
 <%- include('_schede') %>
-<form class="filtri" method="get"><label class="cerca">Cerca<input name="q" value="<%= filtri.q %>" placeholder="numero, codice o persona"></label>
+<form class="filtri" method="get"><% if (ord.esplicito) { %><input type="hidden" name="ord" value="<%= ord.chiave %>"><input type="hidden" name="dir" value="<%= ord.dir %>"><% } %><label class="cerca">Cerca<input name="q" value="<%= filtri.q %>" placeholder="numero, codice o persona"></label>
   <%- include('_sel', {nome:'stato', label:'Stato', opzioni: stati.map(t=>({v:t,l:t})), valore: filtri.stato, vuoto:true}) %><button>Filtra</button></form>
+<%- include('_ordsel') %>
+<%- include('_testa', {griglia: 'r-sim', colonne: [{k: ''}, {k: 'numero', label: 'Numero'}, {k: 'persona', label: 'Persona'}, {k: 'piano', label: 'Piano'}, {k: 'costo', label: 'Costo', cls: 'n'}, {k: 'stato', label: 'Stato'}]}) %>
 <div class="righe">
 <% if (!righe.length) { %><div class="vuoto">Nessuna SIM con questi filtri.</div><% } %>
 <% righe.forEach(r => { %>

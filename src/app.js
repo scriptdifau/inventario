@@ -37,6 +37,13 @@ function creaApp() {
   app.use((req, res, next) => {
     res.locals.utente = req.session.utente;
     res.locals.path = req.path;
+    // URL della pagina con filtri e ordinamento attuali, cambiando solo ciò che serve (valori vuoti tolti)
+    const percorso = req.path; const q0 = { ...req.query };
+    res.locals.urlCon = (extra = {}) => {
+      const p = new URLSearchParams();
+      Object.entries({ ...q0, ...extra }).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') p.set(k, v); });
+      const t = p.toString(); return percorso + (t ? '?' + t : '');
+    };
     // link "Scarica Excel": stessa vista, stessi filtri
     res.locals.xlsUrl = req.path + '?' + new URLSearchParams({ ...req.query, xlsx: '1' }).toString();
     res.locals.errore = null;

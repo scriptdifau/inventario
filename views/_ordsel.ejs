@@ -1,0 +1,9 @@
+<%# menu "Ordina per" (telefono, o sempre se sempre=true): tutte le colonne ordinabili in entrambe le direzioni %>
+<label class="ord-m <%= typeof sempre !== 'undefined' && sempre ? 'sempre' : '' %>">Ordina per
+  <select onchange="location=this.value" aria-label="Ordina per">
+  <% ord.colonne.forEach(c => { %>
+    <option value="<%= urlCon({ord: c.k, dir: 'asc'}) %>" <%= ord.chiave === c.k && ord.dir === 'asc' ? 'selected' : '' %>><%= c.label %> (A→Z)</option>
+    <option value="<%= urlCon({ord: c.k, dir: 'desc'}) %>" <%= ord.chiave === c.k && ord.dir === 'desc' ? 'selected' : '' %>><%= c.label %> (Z→A)</option>
+  <% }) %>
+  </select>
+</label>
