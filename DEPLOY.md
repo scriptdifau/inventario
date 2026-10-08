@@ -133,6 +133,14 @@ Si fanno da soli: ogni merge su `main` avvia un deploy. Controlla in *Node.js �
 riavvia l'app se serve. Le modifiche allo schema sono in `migrazioni/`: applicale con `psql -f`, in ordine, **prima** di
 unire la modifica che le usa. Se il file non è ancora sul server, si può incollare il suo contenuto in `psql` (`psql -h localhost -U UTENTE NOMEDB`, poi incolla e `\q`).
 
+### Pulizia dei vecchi deploy (inode)
+Ogni deployment lascia una cartella `.nodeapp/<id>` di circa 1.500 file. `scripts/pulisci-deploy.sh` tiene le ultime 3 e cancella le più vecchie
+(salta quelle toccate da meno di 10 minuti). Senza argomenti è una **prova** che elenca soltanto; per cancellare serve `--applica`.
+1. Copia fissa in `~/bin` (la cartella del deploy cambia): `mkdir -p ~/bin && cp .../app_source/scripts/pulisci-deploy.sh ~/bin/ && chmod +x ~/bin/pulisci-deploy.sh`.
+2. Prova: `~/bin/pulisci-deploy.sh`, poi `~/bin/pulisci-deploy.sh --applica`.
+3. Cron settimanale, per esempio domenica alle 04:10:
+   `10 4 * * 0 /home/UTENTE_SSH/bin/pulisci-deploy.sh --applica >> /home/UTENTE_SSH/pulisci-deploy.log 2>&1`
+
 ## 9. Dopo il passaggio
 Il foglio resta come riferimento (permessi da definire). Importa regolarmente il report antivirus e l'export utenti
 Workspace dalla pagina **Importa**.
