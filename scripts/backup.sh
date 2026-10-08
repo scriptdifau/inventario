@@ -21,7 +21,8 @@ trap 'rm -f "$TMP"' EXIT
 # senza richieste di password: da cron nessuno potrebbe rispondere
 pg_dump --no-owner --no-privileges --no-password ${DATABASE_URL:+"$DATABASE_URL"} | gzip -9 > "$TMP"
 gzip -t "$TMP"                                   # archivio leggibile
-zcat "$TMP" | grep -q 'CREATE TABLE public.asset ' || { echo "Dump senza la tabella asset: scartato" >&2; exit 1; }
+# grep -c legge tutto l'input: con -q si fermerebbe alla prima riga trovata e, con pipefail, un dump grande darebbe un falso errore
+zcat "$TMP" | grep -c 'CREATE TABLE public.asset ' > /dev/null || { echo "Dump senza la tabella asset: scartato" >&2; exit 1; }
 mv "$TMP" "$OUT"
 ln -sf "$(basename "$OUT")" "$DIR/ultimo.sql.gz"  # sempre l'ultimo, comodo da scaricare
 find "$DIR" -name 'inventario-*.sql.gz' -mtime +"$KEEP" -delete
