@@ -1,0 +1,17 @@
+<%- include('_head', {titolo: 'Dashboard'}) %>
+<h1>Dashboard</h1>
+<div class="card kpi">
+  <% Object.entries(totali).forEach(([az, tot]) => { %><div><span style="color:var(--mut)"><%= az %> · importo</span><b><%= euro(tot) %></b></div><% }) %>
+  <% av.forEach(r => { %><div><span style="color:var(--mut)">Antivirus <%= r.antivirus %></span><b class="<%= r.antivirus %>"><%= r.n %></b></div><% }) %>
+</div>
+<h2>Riepilogo</h2>
+<div class="tw"><table><tr><th>Azienda</th><th>Tipologia</th><th class="n">Assegnato</th><th class="n">In esercizio</th><th class="n">Disponibile</th><th class="n">Da verificare</th><th class="n">Non aziendale</th><th class="n">Estinto</th><th class="n">Usciti</th><th class="n">Totale</th><th class="n">Importo</th></tr>
+<% riep.forEach(r => { %><tr><td><%= r.azienda %></td><td><%= r.tipologia %></td><td class="n"><%= r.assegnato %></td><td class="n"><%= r.in_esercizio %></td><td class="n"><%= r.disponibile %></td><td class="n"><%= r.da_verificare %></td><td class="n"><%= r.non_aziendale %></td><td class="n"><%= r.estinto %></td><td class="n"><%= r.usciti %></td><td class="n"><%= r.totale %></td><td class="n"><%= euro(r.importo) %></td></tr><% }) %></table></div>
+<h2>Acquisti per anno</h2>
+<div class="tw"><table><tr><th>Anno</th><th>Azienda</th><th class="n">Asset</th><th class="n">Valore</th></tr>
+<% anni.forEach(r => { %><tr><td><%= r.anno %></td><td><%= r.azienda %></td><td class="n"><%= r.n_asset %></td><td class="n"><%= euro(r.valore) %></td></tr><% }) %></table></div>
+<h2>Da verificare (<%= daVer.length %>)</h2>
+<% if (daVer.length) { %><div class="tw"><table><% daVer.forEach(r => { %><tr><td><a href="/asset?q=<%= r.codice %>"><%= r.codice %></a></td><td><%= r.tipologia %></td><td><%= r.modello %></td><td><%= r.assegnato_a %></td></tr><% }) %></table></div><% } else { %><p>Nessuno.</p><% } %>
+<h2>Ultimi movimenti</h2>
+<div class="tw"><table><% ultimiMov.forEach(m => { %><tr><td><%= data(m.data) %></td><td><%= m.tipo %></td><td><%= m.codice %></td><td><%= m.stato_prima || '' %> → <%= m.stato_dopo || '' %></td></tr><% }) %></table></div>
+<%- include('_foot') %>

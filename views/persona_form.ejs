@@ -1,0 +1,14 @@
+<%- include('_head', {titolo: nuova ? 'Nuova persona' : 'Modifica persona'}) %>
+<h1><%= nuova ? 'Nuova persona' : 'Modifica persona' %></h1>
+<form method="post" class="card"><input type="hidden" name="_csrf" value="<%= csrf %>"><div class="form">
+  <label>Nome<input name="nome" required value="<%= p.nome ?? '' %>"></label>
+  <label>Cognome<input name="cognome" required value="<%= p.cognome ?? '' %>"></label>
+  <label>Email<input type="email" name="email" value="<%= p.email ?? '' %>"></label>
+  <%- include('_sel', {nome:'azienda_id', label:'Azienda', opzioni: aziende.map(x=>({v:x.id,l:x.nome})), valore: p.azienda_id, vuoto:true}) %>
+  <label>Reparto<input name="reparto" value="<%= p.reparto ?? '' %>"></label>
+  <%- include('_sel', {nome:'stato', label:'Stato', opzioni: ['Attivo','Sospeso','Cessato'].map(t=>({v:t,l:t})), valore: p.stato, vuoto:false}) %>
+  <label>Data ingresso<input type="date" name="data_ingresso" value="<%= iso(p.data_ingresso) %>"></label>
+  <label>Data uscita<input type="date" name="data_uscita" value="<%= iso(p.data_uscita) %>"></label>
+  <label class="w">Note<textarea name="note" rows="3"><%= p.note ?? '' %></textarea></label>
+</div><p><button>Salva</button> <a class="btn sec" href="/persone">Annulla</a></p></form>
+<%- include('_foot') %>

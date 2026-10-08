@@ -1,0 +1,9 @@
+<%- include('_head', {titolo: p.nome + ' ' + p.cognome}) %>
+<h1><%= p.nome %> <%= p.cognome %> <a class="btn" href="/persone/<%= p.id %>/modifica" style="font-size:.9rem">Modifica</a></h1>
+<div class="card"><dl>
+<% [['Email',p.email],['Azienda',p.azienda],['Reparto',p.reparto],['Stato',p.stato],['Stato Workspace',p.stato_workspace],['Ingresso',data(p.data_ingresso)],['Uscita',data(p.data_uscita)],['Note',p.note]].forEach(([k,v]) => { if (v) { %><dt><%= k %></dt><dd><%= v %></dd><% } }) %></dl></div>
+<h2>Asset assegnati</h2>
+<% if (asset.length) { %><div class="tw"><table><% asset.forEach(a => { %><tr><td><a href="/asset/<%= a.id %>"><%= a.codice %></a></td><td><%= a.tipologia %></td><td><%= [a.marca, a.modello].filter(Boolean).join(' ') %></td><td><%= a.hostname %></td><td><%= a.stato %></td></tr><% }) %></table></div><% } else { %><p>Nessuno.</p><% } %>
+<h2>SIM</h2>
+<% if (sim.length) { %><ul><% sim.forEach(s => { %><li><%= s.codice %> · <%= s.numero %> · <%= s.operatore %> (<%= s.stato %>)</li><% }) %></ul><% } else { %><p>Nessuna.</p><% } %>
+<%- include('_foot') %>

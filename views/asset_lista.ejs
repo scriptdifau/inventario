@@ -1,0 +1,14 @@
+<%- include('_head', {titolo: 'Asset'}) %>
+<h1>Asset <a class="btn" href="/asset/nuovo" style="font-size:.9rem">+ Nuovo</a></h1>
+<form class="filtri" method="get">
+  <label>Cerca<input name="q" value="<%= filtri.q %>" placeholder="codice, persona, modello, serial…"></label>
+  <%- include('_sel', {nome:'tipologia', label:'Tipologia', opzioni: tipologie.map(t=>({v:t,l:t})), valore: filtri.tipologia, vuoto:true}) %>
+  <%- include('_sel', {nome:'stato', label:'Stato', opzioni: stati.map(t=>({v:t,l:t})), valore: filtri.stato, vuoto:true}) %>
+  <%- include('_sel', {nome:'azienda', label:'Azienda', opzioni: aziende.map(a=>({v:a.nome,l:a.nome})), valore: filtri.azienda, vuoto:true}) %>
+  <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" name="uscita" value="1" <%= filtri.uscita ? 'checked' : '' %>> anche usciti</label>
+  <button>Filtra</button>
+</form>
+<div class="tw"><table><tr><th>ID</th><th>Tipo</th><th>Stato</th><th>Assegnato a</th><th>Marca / modello</th><th>Hostname</th><th>Azienda</th><th>Acquisto</th><th class="n">Importo</th></tr>
+<% righe.forEach(r => { %><tr><td><a href="/asset/<%= r.id %>"><%= r.codice %></a></td><td><%= r.tipologia %></td><td><span class="tag"><%= r.stato %></span></td><td><%= r.assegnato_a %></td><td><%= [r.marca, r.modello].filter(Boolean).join(' ') %></td><td><%= r.hostname %></td><td><%= r.azienda %></td><td><%= data(r.data_acquisto) %></td><td class="n"><%= euro(r.importo) %></td></tr><% }) %></table></div>
+<p style="color:var(--mut)"><%= righe.length %> asset</p>
+<%- include('_foot') %>

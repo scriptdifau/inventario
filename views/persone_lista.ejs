@@ -1,0 +1,7 @@
+<%- include('_head', {titolo: 'Persone'}) %>
+<h1>Persone <a class="btn" href="/persone/nuova" style="font-size:.9rem">+ Nuova</a></h1>
+<form class="filtri" method="get"><label>Cerca<input name="q" value="<%= filtri.q %>"></label>
+<%- include('_sel', {nome:'stato', label:'Stato', opzioni: ['Attivo','Sospeso','Cessato'].map(t=>({v:t,l:t})), valore: filtri.stato, vuoto:true}) %><button>Filtra</button></form>
+<div class="tw"><table><tr><th>Nome</th><th>Email</th><th>Azienda</th><th>Stato</th><th class="n">Asset</th></tr>
+<% righe.forEach(r => { %><tr><td><a href="/persone/<%= r.id %>"><%= r.cognome %> <%= r.nome %></a></td><td><%= r.email %></td><td><%= r.azienda %></td><td><%= r.stato %></td><td class="n"><%= r.n_asset %></td></tr><% }) %></table></div>
+<%- include('_foot') %>
