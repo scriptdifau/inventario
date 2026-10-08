@@ -1,5 +1,7 @@
 <%- include('_head', {titolo: nomeAsset(a)}) %>
-<p class="mut" style="margin:0 0 8px"><a href="/asset">← Tutti gli asset</a></p>
+<p class="mut" style="margin:0 0 8px"><a href="<%= a.fuori ? '/cestino' : '/asset' %>">← <%= a.fuori ? 'Cestino' : 'Tutti gli asset' %></a></p>
+<% if (a.fuori) { %><div class="banner-cestino"><span>🗑 <b>Nel Cestino</b>: <%= a.stato %><%= a.data_dismissione ? ' il ' + data(a.data_dismissione) : '' %>. Non è più in contabilità; qui resta la traccia.</span>
+  <form method="post" action="/asset/<%= a.id %>/ripristina" onsubmit="return confirm('Ripristinare questo asset? Torna in magazzino con stato Disponibile.')"><input type="hidden" name="_csrf" value="<%= csrf %>"><button class="btn sec sm">Ripristina</button></form></div><% } %>
 <div class="card">
   <div class="scheda">
     <span class="tondo"><%- include('_icon', {tipo: a.tipologia, dim: 28}) %></span>

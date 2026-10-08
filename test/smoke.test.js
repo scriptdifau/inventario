@@ -31,7 +31,7 @@ test('nessuna pagina pubblica', { skip }, async () => {
 });
 
 test('pagine principali', { skip }, async () => {
-  for (const p of ['/', '/asset', '/asset/1', '/asset/1/modifica', '/asset/nuovo', '/persone', '/persone/1', '/movimenti', '/cespiti', '/importa', '/sim/nuova'])
+  for (const p of ['/', '/asset', '/asset/1', '/asset/1/modifica', '/asset/nuovo', '/persone', '/persone/1', '/movimenti', '/cestino', '/cestino?vista=storico', '/importa', '/sim/nuova'])
     assert.strictEqual((await req(p)).status, 200, p);
   assert.strictEqual((await req('/asset/99999')).status, 404);
 });
@@ -116,8 +116,8 @@ test('export Excel: ogni vista, anche filtrata', { skip }, async () => {
   assert.ok(tutti > 50 && assegnati > 0 && assegnati < tutti, `${assegnati} < ${tutti}`);
   const html = await (await req('/asset?stato=Assegnato')).text();
   assert.match(html, /href="\/asset\?stato=Assegnato&amp;xlsx=1"/);          // il link conserva i filtri
-  for (const u of ['/persone', '/movimenti', '/cespiti', '/']) assert.ok(await righe(u + (u === '/' ? '?xlsx=1' : '?xlsx=1')) >= 0, u);
-  assert.strictEqual(await righe('/cespiti?xlsx=1'), 23);
+  for (const u of ['/persone', '/movimenti', '/cestino', '/']) assert.ok(await righe(u + '?xlsx=1') >= 0, u);
+  assert.strictEqual(await righe('/cestino?vista=storico&xlsx=1'), 23);
 });
 
 test('albero per azienda: pagine, filtri fissi, antivirus e SIM come simboli, Excel', { skip }, async () => {
@@ -448,4 +448,43 @@ test('import fattura XML: anteprima (nulla salvato), conferma, nessun duplicato,
   }
   assert.strictEqual(await contaAsset(), prima);
   assert.strictEqual((await query('SELECT count(*)::int n FROM fornitore')).rows[0].n, fornPrima);
+});
+
+test('Cestino: asset dismessi (stati oltre Estinto) + storico ante 2018, ripristino, vecchio indirizzo', { skip }, async () => {
+  const { query } = require('../src/db');
+  const az = (await query('SELECT id FROM azienda ORDER BY id LIMIT 1')).rows[0].id;
+  const nuovo = async (modello, stato) => (await query(`INSERT INTO asset (tipologia, stato, azienda_id, modello, importo) VALUES ('PC', $1, $2, $3, 100) RETURNING id`, [stato, az, modello])).rows[0].id;
+  const estinto = await nuovo('ZzEstinto', 'Estinto'); const venduto = await nuovo('ZzVenduto', 'Disponibile'); const rubato = await nuovo('ZzRubato', 'Disponibile');
+  try {
+    await query(`UPDATE asset SET stato = 'Venduto' WHERE id = $1`, [venduto]); await query(`UPDATE asset SET stato = 'Smarrito/Rubato' WHERE id = $1`, [rubato]);   // il trigger imposta la data di dismissione
+    // vecchio indirizzo
+    const old = await req('/cespiti'); assert.strictEqual(old.status, 301); assert.strictEqual(old.headers.get('location'), '/cestino?vista=storico');
+    // il Cestino contiene gli stati "fuori", non Estinto (che resta in contabilità)
+    const html = await (await req('/cestino?q=Zz')).text();
+    assert.ok(html.includes(`href="/asset/${venduto}"`) && html.includes(`href="/asset/${rubato}"`)); assert.ok(!html.includes(`href="/asset/${estinto}"`), 'Estinto resta in contabilità');
+    assert.match(html, /Storico cespiti ante 2018/); assert.match(html, /Asset dismessi/);
+    const soloVenduti = await (await req('/cestino?q=Zz&stato=Venduto')).text();
+    assert.ok(soloVenduti.includes(`href="/asset/${venduto}"`) && !soloVenduti.includes(`href="/asset/${rubato}"`));
+    const anno = new Date().getFullYear();
+    assert.ok((await (await req(`/cestino?q=Zz&anno=${anno}`)).text()).includes(`href="/asset/${venduto}"`)); assert.ok(!(await (await req('/cestino?q=Zz&anno=1999')).text()).includes(`href="/asset/${venduto}"`));
+    assert.strictEqual((await req('/cestino?ord=importo&dir=asc')).status, 200); assert.strictEqual((await req('/cestino?xlsx=1')).status, 200);
+    assert.match(await (await req('/')).text(), /href="\/cestino"/);   // voce nell'albero
+    // fuori dagli elenchi normali, dentro con "anche nel Cestino"
+    assert.ok(!(await (await req('/asset?q=ZzVenduto')).text()).includes(`href="/asset/${venduto}"`)); assert.ok((await (await req('/asset?q=ZzVenduto&uscita=1')).text()).includes(`href="/asset/${venduto}"`));
+    // scheda: banner e ripristino; il form di modifica raggruppa gli stati
+    assert.match(await (await req(`/asset/${venduto}`)).text(), /Nel Cestino/);
+    const form = await (await req(`/asset/${venduto}/modifica`)).text();
+    assert.match(form, /optgroup label="In contabilità"/); assert.match(form, /optgroup label="Dismesso: va nel Cestino"/);
+    const t = await csrf(`/asset/${venduto}`);
+    assert.strictEqual((await post(`/asset/${venduto}/ripristina`, {})).status, 403);
+    assert.strictEqual((await post(`/asset/${estinto}/ripristina`, { _csrf: t })).status, 404);   // non è nel Cestino
+    assert.strictEqual((await post(`/asset/${venduto}/ripristina`, { _csrf: t })).status, 302);
+    const a = (await query('SELECT stato, data_dismissione FROM asset WHERE id = $1', [venduto])).rows[0];
+    assert.strictEqual(a.stato, 'Disponibile'); assert.strictEqual(a.data_dismissione, null);
+    assert.ok(!(await (await req('/cestino?q=Zz')).text()).includes(`href="/asset/${venduto}"`));
+    assert.ok(!/Nel Cestino/.test(await (await req(`/asset/${venduto}`)).text()));
+  } finally {
+    await query('DELETE FROM movimento WHERE asset_id = ANY($1)', [[estinto, venduto, rubato]]);
+    await query('DELETE FROM asset WHERE id = ANY($1)', [[estinto, venduto, rubato]]);
+  }
 });

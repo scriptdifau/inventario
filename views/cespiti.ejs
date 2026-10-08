@@ -1,6 +1,7 @@
-<%- include('_head', {titolo: 'Cespiti ante 2018'}) %>
-<div class="titolo"><h1>Cespiti ante 2018</h1><span class="sp"></span><a class="btn sec sm" href="<%= xlsUrl %>">⬇ Scarica Excel</a></div>
-<p class="sottotitolo">Storico di sola lettura, copiato dal foglio per la quadratura con l'amministrazione. Non è collegato agli asset.</p>
+<%- include('_head', {titolo: 'Cestino · storico ante 2018'}) %>
+<div class="titolo"><h1>Cestino</h1><span class="sp"></span><a class="btn sec sm" href="<%= xlsUrl %>">⬇ Scarica Excel</a></div>
+<p class="sottotitolo">Storico dei cespiti ante 2018, di sola lettura, copiato dal foglio per la quadratura con l'amministrazione. Non è collegato agli asset.</p>
+<%- include('_cestino_tab', {attiva: 'storico', nAsset, nStorico: righe.length}) %>
 <div class="tw"><table><tr><%
   const th = (k, label, cls) => { const on = ord.chiave === k; return '<th class="' + (cls || '') + '"><a class="ordc ' + (on ? 'on' : '') + '" href="' + urlCon({ord: k, dir: on && ord.dir === 'asc' ? 'desc' : 'asc'}) + '">' + label + (on ? ' <b>' + (ord.dir === 'asc' ? '▲' : '▼') + '</b>' : '') + '</a></th>'; };
   %><%- th('numero', 'N.', 'n') %><%- th('categoria', 'Categoria') %><%- th('data', 'Data') %><%- th('fornitore', 'Fornitore') %><%- th('descrizione', 'Descrizione') %><%- th('trovare', 'Da trovare o eliminare', 'n') %><%- th('abbinare', 'Da abbinare', 'n') %><th>Note</th></tr>

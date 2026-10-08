@@ -3,7 +3,10 @@
 <form method="post" class="card"><input type="hidden" name="_csrf" value="<%= csrf %>">
 <div class="form">
   <%- include('_sel', {nome:'tipologia', label:'Tipologia', opzioni: tipologie.map(t=>({v:t,l:t})), valore: a.tipologia, vuoto:false}) %>
-  <%- include('_sel', {nome:'stato', label:'Stato', opzioni: stati.map(t=>({v:t,l:t})), valore: a.stato, vuoto:false}) %>
+  <label>Stato<select name="stato">
+    <optgroup label="In contabilità"><% statiInfo.filter(x => !x.fuori).forEach(x => { %><option value="<%= x.nome %>" <%= x.nome === a.stato ? 'selected' : '' %>><%= x.nome %></option><% }) %></optgroup>
+    <optgroup label="Dismesso: va nel Cestino"><% statiInfo.filter(x => x.fuori).forEach(x => { %><option value="<%= x.nome %>" <%= x.nome === a.stato ? 'selected' : '' %>><%= x.nome %></option><% }) %></optgroup>
+  </select><span class="s mut">Dopo «Estinto» l'asset esce dalla contabilità e finisce nel Cestino, dove resta consultabile.</span></label>
   <%- include('_sel', {nome:'persona_id', label:'Assegnato a', opzioni: persone.map(p=>({v:p.id,l:p.nome + (p.stato !== 'Attivo' ? ' (' + p.stato + ')' : '')})), valore: a.persona_id, vuoto:true}) %>
   <%- include('_sel', {nome:'azienda_id', label:'Azienda', opzioni: aziende.map(x=>({v:x.id,l:x.nome})), valore: a.azienda_id, vuoto:false}) %>
   <label>Marca<input name="marca" value="<%= a.marca ?? '' %>"></label>

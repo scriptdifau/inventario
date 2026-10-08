@@ -20,11 +20,11 @@ async function lookup() {
   const [az, tip, st, pe, fo] = await Promise.all([
     query('SELECT id, nome FROM azienda ORDER BY id'),
     query('SELECT nome FROM tipologia'),
-    query('SELECT nome FROM stato_asset ORDER BY ordine'),
+    query('SELECT nome, fuori FROM stato_asset ORDER BY ordine'),
     query(`SELECT id, nome || ' ' || cognome AS nome, stato FROM persona ORDER BY cognome, nome`),
     query('SELECT id, nome FROM fornitore ORDER BY nome'),
   ]);
-  return { aziende: az.rows, tipologie: tip.rows.map((r) => r.nome), stati: st.rows.map((r) => r.nome), persone: pe.rows, fornitori: fo.rows };
+  return { aziende: az.rows, tipologie: tip.rows.map((r) => r.nome), stati: st.rows.map((r) => r.nome), statiInfo: st.rows, persone: pe.rows, fornitori: fo.rows };
 }
 
 async function elenco(req, res, next) {
@@ -161,6 +161,16 @@ router.post('/:id(\\d+)/modifica', async (req, res, next) => {
     await salva(req, req.params.id);
     res.redirect('/asset/' + req.params.id);
   } catch (e) { req.body.id = req.params.id; rerender(e, req, res, next, false); }
+});
+
+// dal Cestino torna in magazzino (stato Disponibile): il trigger azzera la data di dismissione e registra il movimento
+router.post('/:id(\\d+)/ripristina', async (req, res, next) => {
+  try {
+    const a = (await query('SELECT a.id FROM asset a JOIN stato_asset s ON s.nome = a.stato WHERE a.id = $1 AND s.fuori', [req.params.id])).rows[0];
+    if (!a) return next();
+    await query(`UPDATE asset SET stato = 'Disponibile', persona_id = NULL WHERE id = $1`, [a.id]);
+    res.redirect('/asset/' + a.id);
+  } catch (e) { next(e); }
 });
 
 // eliminazione definitiva dell'asset; resta traccia in Movimenti (tipo "Eliminazione") e lo storico precedente
