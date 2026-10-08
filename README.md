@@ -38,14 +38,8 @@ I file in `migrazioni/` si applicano una volta, in ordine, con `psql "$DATABASE_
 ## Esportazione Excel
 Ogni vista (Dashboard, Asset, Persone, SIM, Movimenti, Antivirus, Cespiti ante 2018) ha il link **Scarica Excel**: scarica un `.xlsx` con gli stessi filtri attivi nella pagina (aggiungendo `xlsx=1` all'indirizzo). Il Movimenti scarica tutte le righe filtrate, non solo le ultime 500. Il file è generato da `src/xlsx.js`, senza dipendenze aggiuntive.
 
-## Backup (punto 3)
-`scripts/backup.sh` fa un dump SQL compresso in `BACKUP_DIR` (default `./backups`), lo controlla (gzip + presenza della tabella asset) e tiene gli ultimi `KEEP_DAYS` giorni (30). Serve `pg_dump` nel PATH.
-```
-# crontab / Cron Jobs di SiteGround, ogni notte alle 02:30
-30 2 * * * cd /percorso/app && DATABASE_URL=... BACKUP_DIR=/percorso/backup scripts/backup.sh >> backup.log 2>&1
-```
-Ripristino: `createdb nuovo && zcat inventario-AAAAMMGG-HHMMSS.sql.gz | psql nuovo` (provato). Un backup che resta sullo stesso server non protegge dalla perdita del server: va copiato altrove (es. Drive).
-Da verificare sul piano SiteGround (non controllabile da qui): disponibilità di `pg_dump`, dei Cron Jobs e di un processo Node persistente.
+## Backup
+`scripts/backup.sh` fa un dump SQL compresso in `BACKUP_DIR` (predefinita `./backups`), lo controlla (gzip + presenza della tabella asset), tiene gli ultimi `KEEP_DAYS` giorni (30) e aggiorna `ultimo.sql.gz`. Ci si collega con `DATABASE_URL` oppure con `PGHOST`/`PGUSER`/`PGDATABASE` e la password in `~/.pgpass` (così non compare nei comandi); non chiede mai password, quindi va bene da cron. Serve `pg_dump`. Passi completi per SiteGround (copia fissa in `~/bin`, cron, ripristino, copia fuori dal server) in `DEPLOY.md`, sezione 7. Ripristino provato: in un database vuoto, `zcat ultimo.sql.gz | psql ...`.
 
 Restano i punti 5 (foglio in sola lettura per un mese) e la sincronizzazione Workspace via API.
 
