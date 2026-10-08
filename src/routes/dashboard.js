@@ -2,10 +2,11 @@ const router = require('express').Router();
 const { query } = require('../db');
 const { inviaXlsx, num, vuota } = require('../export');
 const { slug: slugAz } = require('../albero');
+const { ATTENZIONE, SOSTITUIRE, sqlEta } = require('../eta');
 
 router.get('/', async (req, res, next) => {
   try {
-    const [riep, anni, av, daVer, ultimiMov] = await Promise.all([
+    const [riep, anni, av, daVer, ultimiMov, etaPc] = await Promise.all([
       query(`SELECT azienda, tipologia, assegnato, in_esercizio, disponibile, da_verificare, non_aziendale, estinto,
                     venduto + ceduto + macerato + smarrito_rubato AS usciti, totale, importo
              FROM v_riepilogo WHERE totale > 0 ORDER BY azienda, tipologia`),
@@ -15,6 +16,11 @@ router.get('/', async (req, res, next) => {
       query(`SELECT m.data, m.tipo, a.id AS asset_id, a.tipologia, a.marca, a.modello, c.numero AS cespite, m.stato_prima, m.stato_dopo, m.oggetto
              FROM movimento m LEFT JOIN asset a ON a.id = m.asset_id LEFT JOIN cespite c ON c.id = a.cespite_id
              ORDER BY m.data DESC, m.id DESC LIMIT 10`),
+      // età dei PC e Mac ancora in vita (non usciti): media e quanti oltre le soglie
+      query(`SELECT tipologia, count(*)::int AS n, round(avg(eta)::numeric, 1)::float AS media,
+                    count(*) FILTER (WHERE eta >= $1)::int AS att, count(*) FILTER (WHERE eta >= $2)::int AS sost, count(*) FILTER (WHERE eta IS NULL)::int AS senza
+             FROM (SELECT a.tipologia, ${sqlEta('a.data_acquisto')} AS eta FROM asset a JOIN stato_asset s ON s.nome = a.stato AND NOT s.fuori
+                   WHERE a.tipologia IN ('PC', 'Mac')) x GROUP BY tipologia ORDER BY tipologia`, [ATTENZIONE, SOSTITUIRE]),
     ]);
     if (vuota(req)) {
       return inviaXlsx(res, 'dashboard', [
@@ -57,7 +63,7 @@ router.get('/', async (req, res, next) => {
       b.parti.forEach((p) => { p.h = (p.valore / max) * H; y -= p.h; p.y = y; });
       b.yTot = y;
     });
-    res.render('dashboard', { aziende, av: avn, avTot, daVer: daVer.rows, ultimiMov: ultimiMov.rows, barre, grafico: { W, H } });
+    res.render('dashboard', { aziende, av: avn, avTot, daVer: daVer.rows, ultimiMov: ultimiMov.rows, barre, grafico: { W, H }, etaPc: etaPc.rows, soglie: { att: ATTENZIONE, sost: SOSTITUIRE } });
   } catch (e) { next(e); }
 });
 

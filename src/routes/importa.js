@@ -49,8 +49,17 @@ router.post('/antivirus', async (req, res, next) => {
       for (const d of dati)
         await c.query(`INSERT INTO antivirus_dispositivo (import_id, dispositivo, stato, utente, sistema_operativo, ultimo_rilevato, ip_locale, mac)
                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [imp.rows[0].id, ...d]);
+      // il report è la fonte più aggiornata del sistema operativo: lo copia sugli asset trovati per hostname (stessa regola del controllo)
+      const so = await c.query(`WITH m AS (
+          SELECT DISTINCT ON (a.id) a.id, btrim(d.sistema_operativo) AS so
+          FROM asset a JOIN stato_asset s ON s.nome = a.stato AND NOT s.fuori
+          JOIN antivirus_dispositivo d ON d.import_id = $1 AND btrim(coalesce(d.sistema_operativo, '')) <> ''
+           AND host_norm(a.hostname) <> '' AND (host_norm(d.dispositivo) = host_norm(a.hostname) OR left(host_norm(d.dispositivo), 15) = left(host_norm(a.hostname), 15))
+          WHERE a.tipologia IN ('PC', 'Mac', 'Server')
+          ORDER BY a.id, (host_norm(d.dispositivo) = host_norm(a.hostname)) DESC)
+        UPDATE asset a SET sistema_operativo = m.so FROM m WHERE a.id = m.id AND a.sistema_operativo IS DISTINCT FROM m.so RETURNING a.id`, [imp.rows[0].id]);
       const k = await c.query(`SELECT antivirus, count(*)::int n FROM v_controllo_antivirus GROUP BY 1 ORDER BY 1`);
-      return { riepilogo: `${dati.length} dispositivi importati. Controllo: ` + k.rows.map((x) => `${x.antivirus} ${x.n}`).join(', ') };
+      return { riepilogo: `${dati.length} dispositivi importati; sistema operativo aggiornato su ${so.rowCount} asset. Controllo: ` + k.rows.map((x) => `${x.antivirus} ${x.n}`).join(', ') };
     });
     risposta(res, 'antivirus', { ...out, avvisi });
   } catch (e) { next(e); }

@@ -17,9 +17,10 @@
   <% if (ord.esplicito) { %><input type="hidden" name="ord" value="<%= ord.chiave %>"><input type="hidden" name="dir" value="<%= ord.dir %>"><% } %>
   <% if (!fisso('tipologia')) { %><%- include('_sel', {nome:'tipologia', label:'Tipologia', opzioni: tipologie.map(t=>({v:t,l:t})), valore: filtri.tipologia, vuoto:true}) %><% } %>
   <% if (!fisso('azienda')) { %><%- include('_sel', {nome:'azienda', label:'Azienda', opzioni: aziende.map(a=>({v:a.nome,l:a.nome})), valore: filtri.azienda, vuoto:true}) %><% } %>
+  <%- include('_sel', {nome:'eta', label:'Età', opzioni: [{v:'att', l:'Oltre ' + etaSoglie.att + ' anni'}, {v:'sost', l:'Oltre ' + etaSoglie.sost + ' anni'}], valore: filtri.eta, vuoto:true}) %>
   <label style="flex-direction:row;align-items:center;gap:6px;padding-bottom:9px"><input type="checkbox" name="uscita" value="1" <%= filtri.uscita ? 'checked' : '' %>> anche usciti</label>
   <button>Filtra</button>
-  <% if (filtri.q || filtri.uscita || filtri.stato || filtri.av || (!ctx && (filtri.tipologia || filtri.azienda))) { %><a class="btn sec" href="<%= base %>">Azzera</a><% } %>
+  <% if (filtri.q || filtri.uscita || filtri.stato || filtri.av || filtri.eta || (!ctx && (filtri.tipologia || filtri.azienda))) { %><a class="btn sec" href="<%= base %>">Azzera</a><% } %>
 </form>
 
 <%- include('_ordsel') %>
@@ -29,7 +30,7 @@
 <% righe.forEach(r => { %>
   <a class="riga r-asset" href="/asset/<%= r.id %>">
     <span class="tondo"><%- include('_icon', {tipo: r.tipologia}) %></span>
-    <span><span class="t"><%= nomeAsset(r) %></span><% if (r.av_stato) { %><%- include('_av', {stato: r.av_stato, visto: r.av_visto}) %><% } %><% if (r.sim_stato) { %><%- include('_sim', {stato: r.sim_stato, numero: r.sim_numero, operatore: r.sim_operatore, piano: r.sim_piano}) %><% } %><br><span class="s"><%= [cesp(r.cespite), r.tipologia, r.hostname].filter(Boolean).join(' · ') %></span></span>
+    <span><span class="t"><%= nomeAsset(r) %></span><% if (r.av_stato) { %><%- include('_av', {stato: r.av_stato, visto: r.av_visto}) %><% } %><% if (r.sim_stato) { %><%- include('_sim', {stato: r.sim_stato, numero: r.sim_numero, operatore: r.sim_operatore, piano: r.sim_piano}) %><% } %><br><span class="s"><%= [cesp(r.cespite), r.tipologia, r.hostname].filter(Boolean).join(' · ') %></span> <%- include('_eta', {eta: r.eta, tipologia: r.tipologia, dataAcq: r.data_acquisto}) %></span>
     <span class="chi"><% if (r.assegnato_a) { %><%- include('_avatar', {nome: r.assegnato_a}) %><span class="nome"><%= r.assegnato_a %></span><% } else { %><span class="mut">—</span><% } %></span>
     <span><%- include('_badge', {stato: r.stato}) %></span>
     <span class="s"><%= r.azienda %></span>

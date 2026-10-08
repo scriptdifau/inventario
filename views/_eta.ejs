@@ -1,0 +1,6 @@
+<%# età dell'hardware accanto al nome: eta (anni, anche stringa) e tipologia; colorata solo per i computer %>
+<% const _e = (eta === null || eta === undefined || eta === '') ? null : Number(eta); if (_e !== null && !isNaN(_e)) {
+  const _l = ['PC', 'Mac', 'Server'].includes(tipologia) ? livelloEta(_e) : null;
+  const _m = Math.max(1, Math.round(_e * 12));
+  const _t = _m < 12 ? _m + (_m === 1 ? ' mese' : ' mesi') : _e.toFixed(1).replace('.', ',') + ' anni'; %>
+<span class="eta <%= _l ? 'eta-' + _l : '' %>" title="Acquistato il <%= typeof dataAcq !== 'undefined' && dataAcq ? data(dataAcq) : '' %>"><%= _t %></span><% } %>

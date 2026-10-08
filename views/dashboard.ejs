@@ -11,6 +11,18 @@
     <div class="d"><%= av['Mancante'] || 0 %> mancanti · <%= av['Da verificare'] || 0 %> da verificare</div></a>
 </div>
 
+<% if (etaPc.length) { %>
+<div class="card" style="margin-bottom:16px"><h2 style="margin-top:0">Età dei computer</h2>
+  <div class="etar">
+  <% etaPc.forEach(e => { %>
+    <div><%- include('_icon', {tipo: e.tipologia, dim: 18}) %> <b><%= e.tipologia %></b> <span class="mut">· <%= e.n %> in uso<%= e.media !== null ? ' · età media ' + String(e.media).replace('.', ',') + ' anni' : '' %></span>
+      <div style="margin-top:6px"><a class="eta <%= e.att ? 'eta-att' : '' %>" href="/asset?tipologia=<%= e.tipologia %>&eta=att"><%= e.att %> oltre <%= soglie.att %> anni</a>
+        <a class="eta <%= e.sost ? 'eta-sost' : '' %>" href="/asset?tipologia=<%= e.tipologia %>&eta=sost"><%= e.sost %> oltre <%= soglie.sost %> anni</a>
+        <% if (e.senza) { %><span class="eta" title="Senza data di acquisto non si calcola l'età"><%= e.senza %> senza data</span><% } %></div></div>
+  <% }) %>
+  </div></div>
+<% } %>
+
 <% const NOMI = { assegnato: 'Assegnato', in_esercizio: 'In esercizio', disponibile: 'Disponibile', da_verificare: 'Da verificare', non_aziendale: 'Non aziendale', estinto: 'Estinto' }; %>
 <div class="grid g2">
 <% aziende.forEach((a, i) => { %>

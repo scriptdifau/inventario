@@ -3,6 +3,7 @@ const express = require('express');
 const cookieSession = require('cookie-session');
 const auth = require('./auth');
 const { caricaAlbero } = require('./albero');
+const eta = require('./eta');
 
 function creaApp() {
   const app = express();
@@ -57,6 +58,7 @@ function creaApp() {
     res.locals.euroK = (n) => (Number(n) >= 1000 ? (Number(n) / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 }) + ' k€' : Math.round(Number(n)) + ' €');
     res.locals.slug = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     res.locals.iniziali = (t) => String(t || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0].toUpperCase()).join('');
+    res.locals.livelloEta = eta.livello; res.locals.etaSoglie = { att: eta.ATTENZIONE, sost: eta.SOSTITUIRE };
     res.locals.tinta = (t) => { let h = 0; for (const c of String(t || '')) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
     next();
   });
