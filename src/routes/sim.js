@@ -2,6 +2,16 @@ const router = require('express').Router();
 const { query, nul } = require('../db');
 const { inviaXlsx, num, vuota } = require('../export');
 const { SIM_AZIENDA } = require('../albero');
+const { ordine, t, tn } = require('../ordina');
+
+const ORD_SIM = {
+  numero: { etichetta: 'Numero', col: ['s.numero'] },
+  persona: { etichetta: 'Persona', col: [tn('pe.cognome'), tn('pe.nome')] },
+  piano: { etichetta: 'Piano', col: [t('s.piano')] },
+  costo: { etichetta: 'Costo mensile', col: ['s.costo_mensile'] },
+  stato: { etichetta: 'Stato', col: ['lower(s.stato)'] },
+  operatore: { etichetta: 'Operatore', col: [t('s.operatore')] },
+};
 
 const CAMPI = ['numero', 'stato', 'persona_id', 'operatore', 'piano', 'costo_mensile', 'azienda_id', 'asset_id', 'giga_telefono', 'saponetta', 'giga_saponetta', 'note'];
 const STATI = ['Attiva', 'Sospesa', 'Cessata', 'Da verificare'];
@@ -10,7 +20,7 @@ async function lookup() {
   const [az, pe, tel] = await Promise.all([
     query('SELECT id, nome FROM azienda ORDER BY id'),
     query(`SELECT id, nome || ' ' || cognome AS nome FROM persona ORDER BY cognome, nome`),
-    query(`SELECT codice, id, coalesce(marca,'') || ' ' || coalesce(modello,'') AS nome FROM v_asset_vivi WHERE tipologia = 'Telefono' ORDER BY id`),
+    query(`SELECT id, cespite, coalesce(marca,'') || ' ' || coalesce(modello,'') AS nome FROM v_asset_vivi WHERE tipologia = 'Telefono' ORDER BY id`),
   ]);
   return { aziende: az.rows, persone: pe.rows, telefoni: tel.rows, stati: STATI };
 }
@@ -22,18 +32,19 @@ async function elenco(req, res, next) {
     if (azienda) { p.push(azienda); w.push(`az.nome = $${p.length}`); }
     if (stato) { p.push(stato); w.push(`s.stato = $${p.length}`); }
     if (q) { p.push(`%${q}%`); w.push(`(s.codice ILIKE $${p.length} OR coalesce(s.numero,'') ILIKE $${p.length} OR pe.nome || ' ' || pe.cognome ILIKE $${p.length})`); }
-    const r = await query(`SELECT s.*, pe.nome || ' ' || pe.cognome AS persona, a.codice AS asset_codice, az.nome AS azienda
-      FROM sim s LEFT JOIN persona pe ON pe.id = s.persona_id LEFT JOIN asset a ON a.id = s.asset_id LEFT JOIN azienda az ON az.id = ${SIM_AZIENDA}
-      ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY s.id`, p);
+    const ord = ordine(req, ORD_SIM, 'persona', 's.id');
+    const r = await query(`SELECT s.*, pe.nome || ' ' || pe.cognome AS persona, a.marca AS tel_marca, a.modello AS tel_modello, ac.numero AS tel_cespite, az.nome AS azienda
+      FROM sim s LEFT JOIN persona pe ON pe.id = s.persona_id LEFT JOIN asset a ON a.id = s.asset_id LEFT JOIN cespite ac ON ac.id = a.cespite_id LEFT JOIN azienda az ON az.id = ${SIM_AZIENDA}
+      ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY ${ord.sql}`, p);
     if (vuota(req)) {
       return inviaXlsx(res, 'sim', [{ nome: 'SIM', righe: r.rows, colonne: [
         { h: 'ID', v: (x) => x.codice }, { h: 'Numero', v: (x) => x.numero }, { h: 'Stato', v: (x) => x.stato },
         { h: 'Assegnata a', v: (x) => x.persona }, { h: 'Operatore', v: (x) => x.operatore }, { h: 'Piano', v: (x) => x.piano },
         { h: 'Costo mensile €', v: (x) => num(x.costo_mensile), t: 'euro' }, { h: 'Azienda', v: (x) => x.azienda },
-        { h: 'Telefono', v: (x) => x.asset_codice }, { h: 'Giga telefono', v: (x) => x.giga_telefono },
+        { h: 'Telefono', v: (x) => [x.tel_marca, x.tel_modello].filter(Boolean).join(' ') }, { h: 'Cespite telefono', v: (x) => x.tel_cespite, t: 'num' }, { h: 'Giga telefono', v: (x) => x.giga_telefono },
         { h: 'Saponetta', v: (x) => x.saponetta }, { h: 'Giga saponetta', v: (x) => x.giga_saponetta }, { h: 'Note', v: (x) => x.note }] }]);
     }
-    res.render('sim_lista', { righe: r.rows, filtri: { q, stato, azienda }, stati: STATI });
+    res.render('sim_lista', { ord, righe: r.rows, filtri: { q, stato, azienda }, stati: STATI });
   } catch (e) { next(e); }
 }
 router.get('/', elenco);

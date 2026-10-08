@@ -1,10 +1,10 @@
-<%- include('_head', {titolo: a.codice}) %>
+<%- include('_head', {titolo: nomeAsset(a)}) %>
 <p class="mut" style="margin:0 0 8px"><a href="/asset">← Tutti gli asset</a></p>
 <div class="card">
   <div class="scheda">
     <span class="tondo"><%- include('_icon', {tipo: a.tipologia, dim: 28}) %></span>
     <div style="flex:1;min-width:200px"><h1><%= [a.marca, a.modello].filter(Boolean).join(' ') || a.tipologia %></h1>
-      <div class="mut"><%= a.codice %> · <%= a.tipologia %> · <%= a.azienda %></div></div>
+      <div class="mut"><%= [cesp(a.cespite), a.tipologia, a.azienda].filter(Boolean).join(' · ') %></div></div>
     <%- include('_badge', {stato: a.stato}) %>
     <a class="btn" href="/asset/<%= a.id %>/modifica">Modifica</a>
   </div>
@@ -13,11 +13,12 @@
 
 <div class="grid g2">
   <section class="card"><h2>Dispositivo</h2><div class="fatti">
+    <% if (av) { %><div><span>Antivirus</span><b><%- include('_av', {stato: av.antivirus, visto: av.ultimo_rilevato}) %> <%= av.antivirus === 'OK' ? 'Attivo' : av.antivirus === 'Da verificare' ? 'Da verificare' : 'Non presente nel report' %><%= av.ultimo_rilevato ? ' · visto il ' + data(av.ultimo_rilevato) : '' %></b></div><% } %>
     <% [['Sistema operativo', a.sistema_operativo], ['RAM', a.ram_gb ? a.ram_gb + ' GB' : ''], ['Storage', a.storage_gb ? a.storage_gb + ' GB' : ''], ['Serial', a.serial], ['Hostname', a.hostname]].forEach(([k, v]) => { if (v) { %>
       <div><span><%= k %></span><b><%= v %></b></div><% } }) %>
   </div></section>
   <section class="card"><h2>Acquisto</h2><div class="fatti">
-    <% [['Fornitore', a.fornitore], ['Fattura', a.n_fattura], ['Data acquisto', data(a.data_acquisto)], ['Importo', euro(a.importo)], ['N. cespite', a.cespite], ['Dismesso il', data(a.data_dismissione)]].forEach(([k, v]) => { if (v) { %>
+    <% [['Fornitore', a.fornitore], ['Fattura', a.n_fattura], ['Data acquisto', data(a.data_acquisto)], ['Importo', euro(a.importo)], ['Dismesso il', data(a.data_dismissione)]].forEach(([k, v]) => { if (v) { %>
       <div><span><%= k %></span><b><%= v %></b></div><% } }) %>
   </div></section>
 </div>

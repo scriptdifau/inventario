@@ -1,32 +1,36 @@
 <%- include('_head', {titolo: 'Asset'}) %>
-<% const base = ctx ? ctx.base : '/asset'; const fisso = (k) => ctx && ctx.fissi.includes(k);
-   const qs = (extra) => { const p = new URLSearchParams(); Object.entries({ q: filtri.q, stato: filtri.stato, uscita: filtri.uscita, ...(fisso('tipologia') ? {} : { tipologia: filtri.tipologia }), ...(fisso('azienda') ? {} : { azienda: filtri.azienda }), ...extra }).forEach(([k, v]) => { if (v) p.set(k, v); }); const t = p.toString(); return base + (t ? '?' + t : ''); }; %>
+<% const base = ctx ? ctx.base : '/asset'; const fisso = (k) => ctx && ctx.fissi.includes(k); %>
 <%- include('_briciole') %>
 <div class="titolo"><h1><%= ctx ? ctx.titolo : 'Asset' %></h1><span class="mut"><%= righe.length %> risultati</span><span class="sp"></span>
   <a class="btn sec sm" href="<%= xlsUrl %>">⬇ Scarica Excel</a><a class="btn sm" href="/asset/nuovo<%= ctx && ctx.tip ? '?azienda_id=' + ctx.az.id + '&tipologia=' + encodeURIComponent(ctx.tip.nome) : '' %>">+ Nuovo asset</a></div>
 <%- include('_schede') %>
 
 <div class="chips">
-  <a class="chip <%= !filtri.stato ? 'on' : '' %>" href="<%= qs({stato: ''}) %>">Tutti</a>
-  <% stati.forEach(st => { if (conteggi[st]) { %><a class="chip <%= filtri.stato === st ? 'on' : '' %>" href="<%= qs({stato: st}) %>"><%= st %> <span class="c"><%= conteggi[st] %></span></a><% } }) %>
+  <a class="chip <%= !filtri.stato && !filtri.av ? 'on' : '' %>" href="<%= urlCon({stato: '', av: ''}) %>">Tutti</a>
+  <% stati.forEach(st => { if (conteggi[st]) { %><a class="chip <%= filtri.stato === st ? 'on' : '' %>" href="<%= urlCon({stato: st}) %>"><%= st %> <span class="c"><%= conteggi[st] %></span></a><% } }) %>
+  <% if (avc && avc.problemi) { %><a class="chip chip-av <%= filtri.av === 'problemi' ? 'on' : '' %>" href="<%= urlCon({av: filtri.av === 'problemi' ? '' : 'problemi'}) %>" title="PC e server attivi senza antivirus o da verificare"><%- include('_av', {stato: 'Mancante'}) %> Antivirus da sistemare <span class="c"><%= avc.problemi %></span></a><% } %>
 </div>
+<% if (avc && avc.tot) { %><p class="mut" style="margin:-4px 0 12px;font-size:.82rem">Antivirus: <span class="av-ok"><%- include('_av', {stato: 'OK'}) %></span> attivo · <span class="av-dv"><%- include('_av', {stato: 'Da verificare'}) %></span> da verificare · <span class="av-no"><%- include('_av', {stato: 'Mancante'}) %></span> assente<%= reportAv ? ' — ultimo report del ' + data(reportAv) : '' %></p><% } %>
 
 <form class="filtri" method="get">
-  <label class="cerca">Cerca<input name="q" value="<%= filtri.q %>" placeholder="codice, persona, modello, serial, hostname…"></label>
-  <input type="hidden" name="stato" value="<%= filtri.stato %>">
+  <label class="cerca">Cerca<input name="q" value="<%= filtri.q %>" placeholder="cespite, persona, modello, serial, hostname…"></label>
+  <input type="hidden" name="stato" value="<%= filtri.stato %>"><input type="hidden" name="av" value="<%= filtri.av %>">
+  <% if (ord.esplicito) { %><input type="hidden" name="ord" value="<%= ord.chiave %>"><input type="hidden" name="dir" value="<%= ord.dir %>"><% } %>
   <% if (!fisso('tipologia')) { %><%- include('_sel', {nome:'tipologia', label:'Tipologia', opzioni: tipologie.map(t=>({v:t,l:t})), valore: filtri.tipologia, vuoto:true}) %><% } %>
   <% if (!fisso('azienda')) { %><%- include('_sel', {nome:'azienda', label:'Azienda', opzioni: aziende.map(a=>({v:a.nome,l:a.nome})), valore: filtri.azienda, vuoto:true}) %><% } %>
   <label style="flex-direction:row;align-items:center;gap:6px;padding-bottom:9px"><input type="checkbox" name="uscita" value="1" <%= filtri.uscita ? 'checked' : '' %>> anche usciti</label>
   <button>Filtra</button>
-  <% if (filtri.q || filtri.uscita || filtri.stato || (!ctx && (filtri.tipologia || filtri.azienda))) { %><a class="btn sec" href="<%= base %>">Azzera</a><% } %>
+  <% if (filtri.q || filtri.uscita || filtri.stato || filtri.av || (!ctx && (filtri.tipologia || filtri.azienda))) { %><a class="btn sec" href="<%= base %>">Azzera</a><% } %>
 </form>
 
+<%- include('_ordsel') %>
+<%- include('_testa', {griglia: 'r-asset', colonne: [{k: ''}, {k: 'dispositivo', label: 'Dispositivo'}, {k: 'persona', label: 'Persona'}, {k: 'stato', label: 'Stato'}, {k: 'azienda', label: 'Azienda'}, {k: 'importo', label: 'Importo', cls: 'n'}]}) %>
 <div class="righe">
 <% if (!righe.length) { %><div class="vuoto">Nessun asset con questi filtri.</div><% } %>
 <% righe.forEach(r => { %>
   <a class="riga r-asset" href="/asset/<%= r.id %>">
     <span class="tondo"><%- include('_icon', {tipo: r.tipologia}) %></span>
-    <span><span class="t"><%= [r.marca, r.modello].filter(Boolean).join(' ') || r.tipologia %></span><br><span class="s"><%= r.codice %> · <%= r.tipologia %><%= r.hostname ? ' · ' + r.hostname : '' %></span></span>
+    <span><span class="t"><%= nomeAsset(r) %></span><% if (r.av_stato) { %><%- include('_av', {stato: r.av_stato, visto: r.av_visto}) %><% } %><br><span class="s"><%= [cesp(r.cespite), r.tipologia, r.hostname].filter(Boolean).join(' · ') %></span></span>
     <span class="chi"><% if (r.assegnato_a) { %><%- include('_avatar', {nome: r.assegnato_a}) %><span class="nome"><%= r.assegnato_a %></span><% } else { %><span class="mut">—</span><% } %></span>
     <span><%- include('_badge', {stato: r.stato}) %></span>
     <span class="s"><%= r.azienda %></span>

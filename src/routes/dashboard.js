@@ -11,8 +11,9 @@ router.get('/', async (req, res, next) => {
              FROM v_riepilogo WHERE totale > 0 ORDER BY azienda, tipologia`),
       query('SELECT azienda, anno, n_asset, valore FROM v_acquisti_per_anno ORDER BY anno DESC, azienda'),
       query(`SELECT antivirus, count(*)::int AS n FROM v_controllo_antivirus GROUP BY antivirus ORDER BY antivirus`),
-      query(`SELECT codice, tipologia, assegnato_a, modello FROM v_asset_vivi WHERE stato = 'Da verificare' ORDER BY codice`),
-      query(`SELECT m.data, m.tipo, a.codice, m.stato_prima, m.stato_dopo FROM movimento m JOIN asset a ON a.id = m.asset_id
+      query(`SELECT id, tipologia, assegnato_a, marca, modello, cespite FROM v_asset_vivi WHERE stato = 'Da verificare' ORDER BY id`),
+      query(`SELECT m.data, m.tipo, a.id AS asset_id, a.tipologia, a.marca, a.modello, c.numero AS cespite, m.stato_prima, m.stato_dopo
+             FROM movimento m JOIN asset a ON a.id = m.asset_id LEFT JOIN cespite c ON c.id = a.cespite_id
              ORDER BY m.data DESC, m.id DESC LIMIT 10`),
     ]);
     if (vuota(req)) {
@@ -60,25 +61,5 @@ router.get('/', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-async function antivirusElenco(req, res, next) {
-  try {
-    const { azienda = '', tipologia = '' } = req.query;
-    const p = []; const w = [];
-    if (azienda) { p.push(azienda); w.push(`v.azienda = $${p.length}`); }
-    if (tipologia) { p.push(tipologia); w.push(`a.tipologia = $${p.length}`); }
-    const r = await query(`SELECT v.*, a.tipologia FROM v_controllo_antivirus v JOIN asset a ON a.codice = v.codice
-      ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY (v.antivirus = 'OK'), v.codice`, p);
-    const imp = await query('SELECT importato, file_nome FROM antivirus_import ORDER BY id DESC LIMIT 1');
-    if (vuota(req)) {
-      return inviaXlsx(res, 'antivirus', [{ nome: 'Controllo antivirus', righe: r.rows, colonne: [
-        { h: 'ID', v: (x) => x.codice }, { h: 'Azienda', v: (x) => x.azienda }, { h: 'Stato asset', v: (x) => x.stato },
-        { h: 'Assegnato a', v: (x) => x.assegnato_a }, { h: 'Hostname', v: (x) => x.hostname }, { h: 'Antivirus', v: (x) => x.antivirus },
-        { h: 'Dispositivo nel report', v: (x) => x.dispositivo_report }, { h: 'Ultimo rilevato', v: (x) => x.ultimo_rilevato, t: 'dataora' }] }]);
-    }
-    res.render('antivirus', { righe: r.rows, ultimo: imp.rows[0] });
-  } catch (e) { next(e); }
-}
-router.get('/antivirus', antivirusElenco);
 
 module.exports = router;
-module.exports.antivirusElenco = antivirusElenco;

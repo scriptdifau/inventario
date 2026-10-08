@@ -10,7 +10,7 @@
 <h2>Asset assegnati <span class="mut">(<%= asset.length %>)</span></h2>
 <% if (asset.length) { %><div class="righe" style="margin-bottom:16px"><% asset.forEach(a => { %>
   <a class="riga" style="grid-template-columns:44px minmax(0,1fr) auto" href="/asset/<%= a.id %>"><span class="tondo"><%- include('_icon', {tipo: a.tipologia}) %></span>
-    <span><span class="t"><%= [a.marca, a.modello].filter(Boolean).join(' ') || a.tipologia %></span><br><span class="s"><%= a.codice %><%= a.hostname ? ' · ' + a.hostname : '' %></span></span><%- include('_badge', {stato: a.stato}) %></a>
+    <span><span class="t"><%= nomeAsset(a) %></span><% if (a.av_stato) { %><%- include('_av', {stato: a.av_stato, visto: a.av_visto}) %><% } %><br><span class="s"><%= [cesp(a.cespite), a.hostname].filter(Boolean).join(' · ') %></span></span><%- include('_badge', {stato: a.stato}) %></a>
 <% }) %></div><% } else { %><div class="card vuoto">Nessun asset assegnato.</div><% } %>
 <h2>SIM</h2>
 <% if (sim.length) { %><div class="righe"><% sim.forEach(s => { %>

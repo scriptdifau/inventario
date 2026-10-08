@@ -31,7 +31,7 @@ test('nessuna pagina pubblica', { skip }, async () => {
 });
 
 test('pagine principali', { skip }, async () => {
-  for (const p of ['/', '/asset', '/asset/1', '/asset/1/modifica', '/asset/nuovo', '/persone', '/persone/1', '/sim', '/movimenti', '/antivirus', '/cespiti', '/importa'])
+  for (const p of ['/', '/asset', '/asset/1', '/asset/1/modifica', '/asset/nuovo', '/persone', '/persone/1', '/sim', '/movimenti', '/cespiti', '/importa'])
     assert.strictEqual((await req(p)).status, 200, p);
   assert.strictEqual((await req('/asset/99999')).status, 404);
 });
@@ -114,7 +114,7 @@ test('export Excel: ogni vista, anche filtrata', { skip }, async () => {
   assert.ok(tutti > 50 && assegnati > 0 && assegnati < tutti, `${assegnati} < ${tutti}`);
   const html = await (await req('/asset?stato=Assegnato')).text();
   assert.match(html, /href="\/asset\?stato=Assegnato&amp;xlsx=1"/);          // il link conserva i filtri
-  for (const u of ['/persone', '/sim', '/movimenti', '/antivirus', '/cespiti', '/']) assert.ok(await righe(u + (u === '/' ? '?xlsx=1' : '?xlsx=1')) >= 0, u);
+  for (const u of ['/persone', '/sim', '/movimenti', '/cespiti', '/']) assert.ok(await righe(u + (u === '/' ? '?xlsx=1' : '?xlsx=1')) >= 0, u);
   assert.strictEqual(await righe('/cespiti?xlsx=1'), 23);
 });
 
@@ -122,10 +122,10 @@ test('albero per azienda: pagine, filtri fissi, antivirus sotto PC/Server, SIM s
   const { query } = require('../src/db');
   const conta = async (url) => (await (await req(url)).text()).match(/(\d+) risultati/)?.[1];
   for (const u of ['/az/cart-armata', '/az/le-parole', '/az/cart-armata/pc', '/az/cart-armata/mac', '/az/cart-armata/telefono',
-    '/az/cart-armata/pc/antivirus', '/az/cart-armata/server/antivirus', '/az/cart-armata/telefono/sim', '/az/le-parole/telefono/sim',
+    '/az/cart-armata/telefono/sim', '/az/le-parole/telefono/sim',
     '/az/cart-armata/persone', '/az/le-parole/persone']) assert.strictEqual((await req(u)).status, 200, u);
   // non esistono: azienda o tipologia inventate, antivirus sui Mac, SIM sui PC, tipologia che l'azienda non ha
-  for (const u of ['/az/boh', '/az/cart-armata/boh', '/az/cart-armata/mac/antivirus', '/az/cart-armata/pc/sim', '/az/le-parole/mac'])
+  for (const u of ['/az/boh', '/az/cart-armata/boh', '/az/cart-armata/pc/antivirus', '/antivirus', '/az/cart-armata/pc/sim', '/az/le-parole/mac'])
     assert.strictEqual((await req(u)).status, 404, u);
 
   // i filtri sono imposti dal percorso: non si possono scavalcare dall'indirizzo
@@ -148,8 +148,91 @@ test('albero per azienda: pagine, filtri fissi, antivirus sotto PC/Server, SIM s
   const xl = await req('/az/cart-armata/pc?xlsx=1');
   assert.match(xl.headers.get('content-disposition'), /asset-/);
   assert.strictEqual(Buffer.from(await xl.arrayBuffer()).subarray(0, 2).toString(), 'PK');
-  assert.match((await req('/az/cart-armata/pc/antivirus?xlsx=1')).headers.get('content-disposition'), /antivirus-/);
   // il modulo "nuovo asset" parte con azienda e tipologia della pagina
   const nuovo = await (await req('/asset/nuovo?azienda_id=1&tipologia=Mac')).text();
   assert.match(nuovo, /<option value="Mac" selected>/);
+});
+
+test('ordinamento: predefinito per persona (cognome), colonne ordinabili, valori non ammessi ignorati, Excel nello stesso ordine', { skip }, async () => {
+  const { query } = require('../src/db');
+  const ids = async (url, classe = 'r-asset') => [...(await (await req(url)).text()).matchAll(new RegExp(`class="riga ${classe}" href="/(?:asset|sim)/(\\d+)`, 'g'))].map((m) => +m[1]);
+
+  // predefinito: per cognome della persona, chi non ha una persona in fondo
+  const atteso = (await query(`SELECT a.id FROM asset a JOIN stato_asset s ON s.nome = a.stato LEFT JOIN persona p ON p.id = a.persona_id
+    WHERE NOT s.fuori ORDER BY lower(p.cognome) NULLS LAST, lower(p.nome) NULLS LAST, a.id`)).rows.map((r) => r.id);
+  assert.deepStrictEqual(await ids('/asset'), atteso);
+  const senza = new Set((await query('SELECT id FROM asset WHERE persona_id IS NULL')).rows.map((r) => r.id));
+  const ordine = await ids('/asset'); const primo = ordine.findIndex((i) => senza.has(i));
+  assert.ok(primo > 0 && ordine.slice(primo).every((i) => senza.has(i)), 'gli asset senza persona sono tutti in fondo');
+  // anche in senso inverso gli assegnati restano per primi
+  const inverso = await ids('/asset?ord=persona&dir=desc'); const p2 = inverso.findIndex((i) => senza.has(i));
+  assert.ok(p2 > 0 && inverso.slice(p2).every((i) => senza.has(i)));
+  // sequenza dei cognomi (senza ripetizioni) in senso inverso = esatto contrario dell'ordine crescente
+  const cognome = (await query('SELECT a.id, lower(p.cognome) || \'|\' || lower(p.nome) AS c FROM asset a JOIN persona p ON p.id = a.persona_id')).rows.reduce((m, r) => m.set(r.id, r.c), new Map());
+  const seq = (lista) => lista.map((i) => cognome.get(i)).filter(Boolean).filter((c, k, a) => k === 0 || a[k - 1] !== c);
+  assert.deepStrictEqual(seq(inverso), seq(ordine).reverse());
+
+  // importo decrescente e codice
+  const imp = await ids('/asset?ord=importo&dir=desc');
+  const val = (await query('SELECT id, importo FROM asset')).rows.reduce((m, r) => m.set(r.id, r.importo === null ? null : Number(r.importo)), new Map());
+  const noti = imp.map((i) => val.get(i)).filter((v) => v !== null);
+  assert.ok(noti.every((v, k) => k === 0 || noti[k - 1] >= v), 'importi in ordine decrescente');
+  const cespId = (await query('SELECT a.id, c.numero FROM asset a LEFT JOIN cespite c ON c.id = a.cespite_id')).rows.reduce((m, r) => m.set(r.id, r.numero), new Map());
+  const cc = (await ids('/asset?ord=cespite&dir=asc')).map((i) => cespId.get(i));
+  const conCesp = cc.filter((v) => v !== null); assert.ok(conCesp.length > 20 && conCesp.every((v, k) => k === 0 || conCesp[k - 1] <= v), 'cespiti in ordine crescente');
+  assert.ok(cc.indexOf(null) > conCesp.length - 1 || cc.slice(conCesp.length).every((v) => v === null), 'senza cespite in fondo');
+
+  // valori non ammessi: stesso ordine del predefinito, nessun errore
+  assert.deepStrictEqual(await ids("/asset?ord=boh&dir=su"), atteso);
+  assert.strictEqual((await req("/asset?ord=persona';drop table asset;--&dir=desc")).status, 200);
+  assert.ok((await query('SELECT count(*)::int n FROM asset')).rows[0].n > 0);
+
+  // l'ordine vale anche per le pagine per azienda, per le SIM e resta nei link
+  const pc = await ids('/az/cart-armata/pc?ord=importo&dir=asc');
+  assert.ok(pc.length > 0);
+  const html = await (await req('/az/cart-armata/pc?ord=importo&dir=asc&stato=Assegnato')).text();
+  assert.match(html, /href="\/az\/cart-armata\/pc\?ord=importo&amp;dir=desc&amp;stato=Assegnato"/);   // clic sulla colonna attiva: inverte
+  assert.match(html, /<b>▲<\/b>/);
+  const sim = await ids('/sim?ord=persona&dir=asc', 'r-sim'); assert.strictEqual(sim.length, 26);
+
+  // Excel nello stesso ordine della pagina
+  const xl = await req('/asset?ord=importo&dir=desc&xlsx=1');
+  assert.strictEqual(xl.status, 200);
+  assert.match(xl.headers.get('content-type'), /spreadsheetml/);
+});
+
+
+test('il codice interno AST non si vede; si usa il cespite; antivirus come simbolo e non più come pagina', { skip }, async () => {
+  const { query } = require('../src/db');
+  for (const u of ['/', '/asset', '/az/cart-armata', '/az/cart-armata/pc', '/az/cart-armata/telefono', '/az/cart-armata/telefono/sim', '/az/cart-armata/persone', '/persone/1', '/movimenti', '/sim', '/asset/1', '/asset/1/modifica']) {
+    const html = await (await req(u)).text();
+    const visibile = html.replace(/<(textarea|option)[^>]*>[\s\S]*?<\/\1>/g, '').replace(/<div style="white-space:pre-wrap">[\s\S]*?<\/div>/g, ''); // note libere e menu: testo degli utenti
+    assert.doesNotMatch(visibile, /AST-\d{3}/, `${u} mostra un codice AST`);
+  }
+  // la scheda dell'asset 1 mostra il suo cespite
+  const c1 = (await query('SELECT c.numero FROM asset a JOIN cespite c ON c.id = a.cespite_id WHERE a.id = 1')).rows[0].numero;
+  assert.match(await (await req('/asset/1')).text(), new RegExp(`Cespite ${c1}\\b`));
+  // si cerca per cespite
+  const trovati = await (await req(`/asset?q=${c1}`)).text();
+  assert.match(trovati, new RegExp(`Cespite ${c1}\\b`));
+
+  // simboli: uno per ogni PC/server controllato, stesso conto del database
+  const html = await (await req('/az/cart-armata/pc')).text();
+  const db = (await query(`SELECT v.antivirus, count(*)::int n FROM v_controllo_antivirus v JOIN asset a ON a.codice = v.codice
+    WHERE v.azienda = 'Cart''armata' AND a.tipologia = 'PC' GROUP BY 1`)).rows.reduce((m, r) => m.set(r.antivirus, r.n), new Map());
+  const righe = html.split('class="riga r-asset"').slice(1);
+  const n = (cl) => righe.filter((r) => r.split('class="riga')[0].includes(`av-ico ${cl}"`)).length;
+  assert.strictEqual(n('av-ok'), db.get('OK') || 0);
+  assert.strictEqual(n('av-dv'), db.get('Da verificare') || 0);
+  assert.strictEqual(n('av-no'), db.get('Mancante') || 0);
+  // filtro "antivirus da sistemare"
+  const prob = await (await req('/asset?av=problemi')).text();
+  const nr = (prob.match(/class="riga r-asset"/g) || []).length;
+  assert.strictEqual(nr, (await query("SELECT count(*)::int n FROM v_controllo_antivirus WHERE antivirus <> 'OK'")).rows[0].n);
+  // sui Mac e sui telefoni nessun simbolo
+  assert.doesNotMatch(await (await req('/az/cart-armata/mac')).text(), /av-ico av-/);
+  assert.doesNotMatch(await (await req('/az/cart-armata/telefono')).text().then((t) => t.replace(/<style[\s\S]*?<\/style>/g, '')), /class="riga r-asset"[\s\S]{0,400}av-ico/);
+  // la pagina antivirus non c'è più, né nel menu
+  assert.strictEqual((await req('/antivirus')).status, 404);
+  assert.doesNotMatch(await (await req('/')).text(), /href="\/antivirus|\/antivirus"/);
 });

@@ -177,3 +177,16 @@ dl{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0}dt{c
 .stat b{display:block;font-size:1.4rem;line-height:1.2}.stat span{color:var(--mut);font-size:.8rem}
 @media print{.top,.btn,.chips,.filtri{display:none}body{background:#fff}}
 main>h1{margin-bottom:18px}
+
+/* ordinamento */
+.testa{display:grid;align-items:center;gap:14px;padding:0 16px 8px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}
+.testa a{color:inherit;white-space:nowrap}.testa a:hover{color:var(--fg);text-decoration:none}.testa a.on{color:var(--acc)}
+.testa .n{text-align:right}.testa b,th .ordc b{font-size:.62rem;vertical-align:1px}
+th .ordc{color:inherit}th .ordc:hover{color:var(--fg);text-decoration:none}th .ordc.on{color:var(--acc)}
+.ord-m{display:none;margin-bottom:12px}.ord-m.sempre{display:flex}
+@media(max-width:820px){.testa{display:none}.ord-m{display:flex}}
+
+/* simbolo antivirus */
+.av-ico{display:inline-flex;vertical-align:-3px;margin-left:6px}.av-ok{color:var(--ok)}.av-dv{color:var(--warn)}.av-no{color:var(--bad)}
+.chip-av .av-ico{margin:0 2px 0 0;vertical-align:-3px}.chip.on .av-ico{color:inherit}
+.chip{white-space:nowrap}

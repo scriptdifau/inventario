@@ -2,6 +2,15 @@ const router = require('express').Router();
 const { query, nul } = require('../db');
 const { inviaXlsx, vuota } = require('../export');
 const { PERSONA_AZIENDA } = require('../albero');
+const { ordine, tn } = require('../ordina');
+
+const ORD_PERSONE = {
+  cognome: { etichetta: 'Cognome', col: [tn('p.cognome'), tn('p.nome')] },
+  nome: { etichetta: 'Nome', col: [tn('p.nome'), tn('p.cognome')] },
+  azienda: { etichetta: 'Azienda', col: [tn('az.nome')] },
+  stato: { etichetta: 'Stato', col: ['p.stato'] },
+  asset: { etichetta: 'N. asset', col: ['n_asset'] },
+};
 
 const CAMPI = ['nome', 'cognome', 'email', 'azienda_id', 'reparto', 'stato', 'data_ingresso', 'data_uscita', 'note'];
 const aziende = async () => (await query('SELECT id, nome FROM azienda ORDER BY id')).rows;
@@ -13,9 +22,10 @@ async function elenco(req, res, next) {
     if (azienda) { p.push(azienda); w.push(`az.nome = $${p.length}`); }
     if (stato) { p.push(stato); w.push(`p.stato = $${p.length}`); }
     if (q) { p.push(`%${q}%`); w.push(`(p.nome || ' ' || p.cognome ILIKE $${p.length} OR coalesce(p.email,'') ILIKE $${p.length})`); }
+    const ord = ordine(req, ORD_PERSONE, 'cognome');
     const r = await query(`SELECT p.*, az.nome AS azienda,
         (SELECT count(*)::int FROM asset a JOIN stato_asset s ON s.nome = a.stato WHERE a.persona_id = p.id AND NOT s.fuori) AS n_asset
-      FROM persona p LEFT JOIN azienda az ON az.id = ${PERSONA_AZIENDA} ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY p.cognome, p.nome`, p);
+      FROM persona p LEFT JOIN azienda az ON az.id = ${PERSONA_AZIENDA} ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY ${ord.sql}, p.id`, p);
     if (vuota(req)) {
       return inviaXlsx(res, 'persone', [{ nome: 'Persone', righe: r.rows, colonne: [
         { h: 'Cognome', v: (x) => x.cognome }, { h: 'Nome', v: (x) => x.nome }, { h: 'Email', v: (x) => x.email },
@@ -24,7 +34,7 @@ async function elenco(req, res, next) {
         { h: 'Data uscita', v: (x) => x.data_uscita, t: 'data' }, { h: 'N. asset', v: (x) => x.n_asset, t: 'num' },
         { h: 'Note', v: (x) => x.note }] }]);
     }
-    res.render('persone_lista', { righe: r.rows, filtri: { q, stato, azienda } });
+    res.render('persone_lista', { ord, righe: r.rows, filtri: { q, stato, azienda } });
   } catch (e) { next(e); }
 }
 router.get('/', elenco);
@@ -58,7 +68,8 @@ router.get('/:id(\\d+)', async (req, res, next) => {
     const p = await query(`SELECT p.*, az.nome AS azienda FROM persona p LEFT JOIN azienda az ON az.id = p.azienda_id WHERE p.id = $1`, [req.params.id]);
     if (!p.rows[0]) return next();
     const [asset, sim] = await Promise.all([
-      query(`SELECT v.id, v.codice, v.tipologia, v.marca, v.modello, v.stato, v.hostname FROM v_asset v JOIN asset a ON a.id = v.id
+      query(`SELECT v.id, v.tipologia, v.marca, v.modello, v.stato, v.hostname, v.cespite, av.antivirus AS av_stato, av.ultimo_rilevato AS av_visto
+             FROM v_asset v JOIN asset a ON a.id = v.id LEFT JOIN v_controllo_antivirus av ON av.codice = v.codice
              WHERE a.persona_id = $1 AND NOT v.fuori ORDER BY v.id`, [req.params.id]),
       query('SELECT id, codice, numero, stato, operatore FROM sim WHERE persona_id = $1 ORDER BY id', [req.params.id]),
     ]);
