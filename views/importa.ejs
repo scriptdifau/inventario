@@ -2,6 +2,7 @@
 <h1>Importa e sincronizza</h1>
 <% if (esito) { %><div class="card" style="border-color:<%= esito.errore ? 'var(--bad)' : 'var(--ok)' %>">
   <b><%= esito.errore || esito.riepilogo %></b>
+  <% if (esito.creati && esito.creati.length) { %><ul><% esito.creati.forEach(c => { %><li><a href="/asset/<%= c.id %>"><%= c.titolo %></a></li><% }) %></ul><% } %>
   <% if (esito.avvisi && esito.avvisi.length) { %><ul><% esito.avvisi.forEach(a => { %><li><%= a %></li><% }) %></ul><% } %></div><% } %>
 <form method="post" action="/importa/workspace-api" class="card">
   <h2 style="margin-top:0">Sincronizza con Google Workspace</h2>
@@ -9,8 +10,46 @@
   <input type="hidden" name="_csrf" value="<%= csrf %>">
   <p><button>Sincronizza ora</button></p>
 </form>
+<form method="post" action="/importa/fattura/anteprima" class="card" id="ff">
+  <h2 style="margin-top:0">Fattura di acquisto (XML o PDF)</h2>
+  <p style="color:var(--mut)">Carica il file della fattura: leggo fornitore, numero, data e righe, ti mostro una bozza e, dopo la tua conferma, registro la fattura, creo gli asset nuovi e collego quelli già presenti (riconosciuti dal seriale). L'XML della fattura elettronica (anche <code>.xml.p7m</code>) è preciso; il PDF è meno affidabile e va controllato con più attenzione. Una fattura per volta.</p>
+  <input type="hidden" name="_csrf" value="<%= csrf %>"><input type="hidden" name="nome" id="f-nome"><input type="hidden" name="formato" id="f-formato" value="xml"><input type="hidden" name="testo" id="f-testo">
+  <p><input type="file" id="f-file" accept=".xml,.p7m,.pdf,application/xml,text/xml,application/pdf"></p>
+  <p id="f-stato" class="mut"></p>
+  <p><button id="f-vai" disabled>Leggi la fattura</button></p>
+</form>
+<script>
+(function () {
+  var inp = document.getElementById('f-file'), st = document.getElementById('f-stato'), vai = document.getElementById('f-vai');
+  var PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+  function carica(src) { return new Promise(function (ok, ko) { var s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = function () { ko(new Error('Non riesco a caricare il lettore PDF (serve la connessione a cdnjs.cloudflare.com).')); }; document.head.appendChild(s); }); }
+  function righeDiPagina(items) {
+    var righe = [];
+    items.forEach(function (it) { if (!it.str || !it.str.trim()) return; var y = Math.round(it.transform[5] / 3) * 3, x = it.transform[4]; var r = righe.find(function (q) { return Math.abs(q.y - y) <= 3; }); if (!r) { r = { y: y, p: [] }; righe.push(r); } r.p.push({ x: x, t: it.str }); });
+    return righe.sort(function (a, b) { return b.y - a.y; }).map(function (r) { return r.p.sort(function (a, b) { return a.x - b.x; }).map(function (p) { return p.t; }).join(' '); });
+  }
+  async function testoPdf(buf) {
+    if (!window.pdfjsLib) await carica(PDFJS + 'pdf.min.js');
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js';
+    var pdf = await window.pdfjsLib.getDocument({ data: buf }).promise, out = [];
+    for (var i = 1; i <= pdf.numPages; i++) { var c = await (await pdf.getPage(i)).getTextContent(); out = out.concat(righeDiPagina(c.items)); }
+    return out.join('\n');
+  }
+  inp.onchange = async function () {
+    var f = inp.files[0]; vai.disabled = true; if (!f) return;
+    document.getElementById('f-nome').value = f.name; st.textContent = 'Leggo il file…';
+    try {
+      var pdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf';
+      document.getElementById('f-formato').value = pdf ? 'pdf' : 'xml';
+      var t = pdf ? await testoPdf(await f.arrayBuffer()) : new TextDecoder('latin1').decode(await f.arrayBuffer());
+      if (!pdf && /<\?xml[^>]*encoding=["']utf-8/i.test(t.slice(0, 200))) t = new TextDecoder('utf-8').decode(await f.arrayBuffer());
+      document.getElementById('f-testo').value = t; st.textContent = f.name + ' pronto (' + Math.max(1, Math.round(t.length / 1024)) + ' KB di testo).'; vai.disabled = false;
+    } catch (e) { st.textContent = 'Errore: ' + (e.message || e); }
+  };
+})();
+</script>
 <% [['antivirus','Report antivirus','Ogni upload aggiunge un nuovo report; il controllo usa l\'ultimo.'],
-    ['fatture','Fatture','Crea le fatture mancanti (fornitore + numero + data) e le collega agli asset indicati.'],
+    ['fatture','Fatture da CSV','Crea le fatture mancanti (fornitore + numero + data) e le collega agli asset indicati.'],
     ['workspace','Utenti Google Workspace','Abbina per nomecognome dell\'email (qualsiasi dominio), aggiorna lo stato Workspace, crea le persone nuove e segnala chi non c\'è più. Non cambia lo stato Attivo/Cessato.']].forEach(([k, t, d]) => { %>
 <form method="post" action="/importa/<%= k %>" class="card">
   <h2 style="margin-top:0"><%= t %></h2><p style="color:var(--mut)"><%= d %><br>Colonne: <%= formati[k] %></p>

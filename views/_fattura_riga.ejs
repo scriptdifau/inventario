@@ -1,0 +1,20 @@
+<%# riga di fattura: i (indice), r { descrizione, azione, asset, tipologia, marca, modello, serial, importo, qta, incerta, collegato } %>
+<div class="card frow" style="margin:0 0 12px">
+  <div class="fdesc"><b><%= r.descrizione || 'Riga aggiunta a mano' %></b>
+    <% if (r.incerta) { %><span class="badge">da verificare</span><% } %>
+    <% if (r.totaleRiga !== null && r.totaleRiga !== undefined) { %><span class="mut"> · <%= r.qta %> × <%= euro(r.importo) %> = <%= euro(r.totaleRiga) %></span><% } %>
+    <% if (r.nota) { %><div class="s mut"><%= r.nota %></div><% } %></div>
+  <input type="hidden" name="descr_<%= i %>" value="<%= r.descrizione || '' %>">
+  <div class="fgrid">
+    <label>Cosa fare<select name="azione_<%= i %>">
+      <% [['nuovo', 'Crea nuovo asset'], ['collega', 'Collega a un asset esistente'], ['salta', 'Salta (non è un asset)']].forEach(([v, l]) => { %>
+      <option value="<%= v %>" <%= r.azione === v ? 'selected' : '' %>><%= l %></option><% }) %></select></label>
+    <label>Asset esistente (codice o numero)<input name="asset_<%= i %>" value="<%= r.asset || '' %>" placeholder="es. AST-045"><% if (r.collegato) { %><span class="s mut"><%= r.collegato %></span><% } %></label>
+    <%- include('_sel', {nome: 'tipologia_' + i, label: 'Tipologia', opzioni: tipologie.map(t => ({v: t, l: t})), valore: r.tipologia, vuoto: false}) %>
+    <label>Marca<input name="marca_<%= i %>" value="<%= r.marca || '' %>"></label>
+    <label>Modello<input name="modello_<%= i %>" value="<%= r.modello || '' %>"></label>
+    <label>Seriale<input name="serial_<%= i %>" value="<%= r.serial || '' %>"></label>
+    <label>Importo (per pezzo, €)<input name="importo_<%= i %>" value="<%= r.importo === null || r.importo === undefined ? '' : String(r.importo).replace('.', ',') %>" inputmode="decimal"></label>
+    <label>Quantità<input type="number" min="1" max="50" name="qta_<%= i %>" value="<%= r.qta || 1 %>"></label>
+  </div>
+</div>

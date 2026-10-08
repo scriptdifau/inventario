@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<p:FatturaElettronica xmlns:p="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2" versione="FPR12">
+ <FatturaElettronicaHeader>
+  <CedentePrestatore><DatiAnagrafici><IdFiscaleIVA><IdPaese>IT</IdPaese><IdCodice>01234567890</IdCodice></IdFiscaleIVA>
+   <Anagrafica><Denominazione>EFFESISTEMI S.R.L. A SOCIO UNICO</Denominazione></Anagrafica></DatiAnagrafici></CedentePrestatore>
+  <CessionarioCommittente><DatiAnagrafici><Anagrafica><Denominazione>CART&apos;ARMATA EDIZIONI SRL</Denominazione></Anagrafica></DatiAnagrafici></CessionarioCommittente>
+ </FatturaElettronicaHeader>
+ <FatturaElettronicaBody>
+  <DatiGenerali><DatiGeneraliDocumento><TipoDocumento>TD01</TipoDocumento><Data>2026-09-30</Data><Numero>ZZ-255/2026</Numero><ImportoTotaleDocumento>2570.20</ImportoTotaleDocumento></DatiGeneraliDocumento></DatiGenerali>
+  <DatiBeniServizi>
+   <DettaglioLinee><NumeroLinea>1</NumeroLinea><Descrizione>Notebook HP ProBook 440 G6 14&quot;</Descrizione><Quantita>2.00</Quantita><PrezzoUnitario>700.00</PrezzoUnitario><PrezzoTotale>1400.00</PrezzoTotale><AliquotaIVA>22.00</AliquotaIVA></DettaglioLinee>
+   <DettaglioLinee><NumeroLinea>2</NumeroLinea><Descrizione>Apple iPhone 15 128GB</Descrizione><Quantita>1.00</Quantita><PrezzoUnitario>700.00</PrezzoUnitario><PrezzoTotale>700.00</PrezzoTotale><AliquotaIVA>22.00</AliquotaIVA>
+     <AltriDatiGestionali><TipoDato>IMEI</TipoDato><RiferimentoTesto>S/N: ZZIMEI1234567</RiferimentoTesto></AltriDatiGestionali></DettaglioLinee>
+   <DettaglioLinee><NumeroLinea>3</NumeroLinea><Descrizione>Spedizione</Descrizione><Quantita>1.00</Quantita><PrezzoUnitario>10.00</PrezzoUnitario><PrezzoTotale>10.00</PrezzoTotale><AliquotaIVA>22.00</AliquotaIVA></DettaglioLinee>
+  </DatiBeniServizi>
+ </FatturaElettronicaBody>
+</p:FatturaElettronica>
