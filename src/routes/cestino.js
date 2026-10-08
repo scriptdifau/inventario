@@ -3,12 +3,12 @@
 const router = require('express').Router();
 const { query } = require('../db');
 const { inviaXlsx, num, vuota } = require('../export');
-const { ordine, t } = require('../ordina');
+const { ordine, t, cespiteOrd } = require('../ordina');
 const { storico } = require('./cespiti');
 
 const ORD = {
   dispositivo: { etichetta: 'Dispositivo', col: [t('marca'), t('modello')] },
-  cespite: { etichetta: 'Cespite', col: ['cespite'] },
+  cespite: { etichetta: 'Cespite', col: cespiteOrd('cespite') },
   stato: { etichetta: 'Stato', col: ['lower(stato)'] },
   dismissione: { etichetta: 'Dismesso il', col: ['data_dismissione'] },
   persona: { etichetta: 'Ultimo assegnatario', col: ['lower(ultimo)'] },
@@ -35,7 +35,7 @@ router.get('/', async (req, res, next) => {
     const r = await query(`SELECT * ${base} ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY ${ord.sql}`, p);
     if (vuota(req)) {
       return inviaXlsx(res, 'cestino', [{ nome: 'Cestino', righe: r.rows, colonne: [
-        { h: 'N. cespite', v: (x) => x.cespite, t: 'num' }, { h: 'Tipologia', v: (x) => x.tipologia }, { h: 'Marca', v: (x) => x.marca }, { h: 'Modello', v: (x) => x.modello },
+        { h: 'N. cespite', v: (x) => x.cespite }, { h: 'Tipologia', v: (x) => x.tipologia }, { h: 'Marca', v: (x) => x.marca }, { h: 'Modello', v: (x) => x.modello },
         { h: 'Stato', v: (x) => x.stato }, { h: 'Dismesso il', v: (x) => x.data_dismissione, t: 'data' }, { h: 'Ultimo assegnatario', v: (x) => x.ultimo },
         { h: 'Azienda', v: (x) => x.azienda }, { h: 'Fornitore', v: (x) => x.fornitore }, { h: 'Serial', v: (x) => x.serial }, { h: 'Hostname', v: (x) => x.hostname },
         { h: 'Data acquisto', v: (x) => x.data_acquisto, t: 'data' }, { h: 'Importo €', v: (x) => num(x.importo), t: 'euro' }, { h: 'Note', v: (x) => x.note }, { h: 'Codice interno', v: (x) => x.codice }] }]);

@@ -1,12 +1,12 @@
 const router = require('express').Router();
 const { query, nul, pool } = require('../db');
 const { inviaXlsx, num, vuota } = require('../export');
-const { ordine, t, tn } = require('../ordina');
+const { ordine, t, tn, cespiteOrd, cespiteNumero } = require('../ordina');
 const { sqlEta, soglia } = require('../eta');
 
 const ORD_ASSET = {
   dispositivo: { etichetta: 'Dispositivo', col: [t('marca'), t('modello')] },
-  cespite: { etichetta: 'Cespite', col: ['cespite'] },
+  cespite: { etichetta: 'Cespite', col: cespiteOrd('cespite') },
   persona: { etichetta: 'Persona (cognome)', col: ['k_cognome', 'k_nome'] },
   nome: { etichetta: 'Persona (nome)', col: ['k_nome', 'k_cognome'] },
   stato: { etichetta: 'Stato', col: ['lower(stato)'] },
@@ -50,7 +50,7 @@ async function elenco(req, res, next) {
       ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY ${ord.sql}`, p);
     if (vuota(req)) {
       return inviaXlsx(res, 'asset', [{ nome: 'Asset', righe: r.rows, colonne: [
-        { h: 'N. cespite', v: (x) => x.cespite, t: 'num' }, { h: 'Tipologia', v: (x) => x.tipologia }, { h: 'Stato', v: (x) => x.stato },
+        { h: 'N. cespite', v: (x) => x.cespite }, { h: 'Tipologia', v: (x) => x.tipologia }, { h: 'Stato', v: (x) => x.stato },
         { h: 'Assegnato a', v: (x) => x.assegnato_a }, { h: 'Marca', v: (x) => x.marca }, { h: 'Modello', v: (x) => x.modello },
         { h: 'RAM (GB)', v: (x) => x.ram_gb, t: 'num' }, { h: 'Storage (GB)', v: (x) => x.storage_gb, t: 'num' },
         { h: 'Sistema operativo', v: (x) => x.sistema_operativo }, { h: 'Serial', v: (x) => x.serial }, { h: 'Hostname', v: (x) => x.hostname },
@@ -96,7 +96,9 @@ async function salva(req, id) {
   const v = CAMPI.map((c) => nul(req.body[c]));
   // cespite: (azienda, numero) -> riga cespite
   let cespiteId = null;
-  const num = nul(req.body.cespite_numero);
+  const cn = cespiteNumero(req.body.cespite_numero);
+  if (cn.errore) { const e = new Error(cn.errore); e.code = '23514'; e.constraint = 'cespite_numero_formato'; e.messaggio = cn.errore; throw e; }
+  const num = cn.numero;
   if (num && nul(req.body.azienda_id)) {
     const c = await query(`INSERT INTO cespite (azienda_id, numero) VALUES ($1, $2)
       ON CONFLICT (azienda_id, numero) DO UPDATE SET numero = EXCLUDED.numero RETURNING id`, [req.body.azienda_id, num]);
@@ -124,7 +126,7 @@ async function rerender(e, req, res, next, nuovo) {
   try {
     const l = await lookup();
     res.status(400).render('asset_form', { a: { ...req.body, codice: req.body.codice }, nuovo, fatture: await fatture(req.body.fornitore_id),
-      errore: e.constraint === 'assegnatario_coerente'
+      errore: e.messaggio ? e.messaggio : e.constraint === 'cespite_numero_formato' ? 'Il numero di cespite può contenere lettere, cifre e i simboli . _ / - (senza spazi), fino a 30 caratteri.' : e.constraint === 'assegnatario_coerente'
         ? 'Incoerenza stato/assegnatario: "Assegnato" richiede una persona; In esercizio, Disponibile, Estinto e gli stati di uscita non possono averne.'
         : e.constraint === 'asset_serial_uq' ? 'Esiste già un asset con questo serial.' : 'Dati non validi: ' + (e.detail || e.message), ...l });
   } catch (e2) { next(e2); }

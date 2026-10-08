@@ -17,7 +17,7 @@ router.get('/', async (req, res, next) => {
     ]);
     if (vuota(req)) {
       return inviaXlsx(res, 'movimenti', [{ nome: 'Movimenti', righe: r.rows, colonne: [
-        { h: 'Data', v: (x) => x.data, t: 'data' }, { h: 'Tipo', v: (x) => x.tipo }, { h: 'Asset', v: (x) => [x.marca, x.modello].filter(Boolean).join(' ') || x.tipologia || x.oggetto }, { h: 'N. cespite', v: (x) => x.cespite, t: 'num' },
+        { h: 'Data', v: (x) => x.data, t: 'data' }, { h: 'Tipo', v: (x) => x.tipo }, { h: 'Asset', v: (x) => [x.marca, x.modello].filter(Boolean).join(' ') || x.tipologia || x.oggetto }, { h: 'N. cespite', v: (x) => x.cespite },
         { h: 'Da', v: (x) => x.da }, { h: 'A', v: (x) => x.a }, { h: 'Stato prima', v: (x) => x.stato_prima },
         { h: 'Stato dopo', v: (x) => x.stato_dopo }, { h: 'Note', v: (x) => x.note }, { h: 'Automatico', v: (x) => x.automatico }, { h: 'Utente', v: (x) => x.utente }] }]);
     }
