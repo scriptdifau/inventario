@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const { query, nul } = require('../db');
+const { inviaXlsx, vuota } = require('../export');
 
 const CAMPI = ['nome', 'cognome', 'email', 'azienda_id', 'reparto', 'stato', 'data_ingresso', 'data_uscita', 'note'];
 const aziende = async () => (await query('SELECT id, nome FROM azienda ORDER BY id')).rows;
@@ -13,6 +14,14 @@ router.get('/', async (req, res, next) => {
     const r = await query(`SELECT p.*, az.nome AS azienda,
         (SELECT count(*)::int FROM asset a JOIN stato_asset s ON s.nome = a.stato WHERE a.persona_id = p.id AND NOT s.fuori) AS n_asset
       FROM persona p LEFT JOIN azienda az ON az.id = p.azienda_id ${w.length ? 'WHERE ' + w.join(' AND ') : ''} ORDER BY p.cognome, p.nome`, p);
+    if (vuota(req)) {
+      return inviaXlsx(res, 'persone', [{ nome: 'Persone', righe: r.rows, colonne: [
+        { h: 'Cognome', v: (x) => x.cognome }, { h: 'Nome', v: (x) => x.nome }, { h: 'Email', v: (x) => x.email },
+        { h: 'Azienda', v: (x) => x.azienda }, { h: 'Reparto', v: (x) => x.reparto }, { h: 'Stato', v: (x) => x.stato },
+        { h: 'Stato Workspace', v: (x) => x.stato_workspace }, { h: 'Data ingresso', v: (x) => x.data_ingresso, t: 'data' },
+        { h: 'Data uscita', v: (x) => x.data_uscita, t: 'data' }, { h: 'N. asset', v: (x) => x.n_asset, t: 'num' },
+        { h: 'Note', v: (x) => x.note }] }]);
+    }
     res.render('persone_lista', { righe: r.rows, filtri: { q, stato } });
   } catch (e) { next(e); }
 });

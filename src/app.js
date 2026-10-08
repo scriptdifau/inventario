@@ -36,6 +36,8 @@ function creaApp() {
   app.use((req, res, next) => {
     res.locals.utente = req.session.utente;
     res.locals.path = req.path;
+    // link "Scarica Excel": stessa vista, stessi filtri
+    res.locals.xlsUrl = req.path + '?' + new URLSearchParams({ ...req.query, xlsx: '1' }).toString();
     res.locals.errore = null;
     res.locals.data = (d) => (d ? new Date(d).toLocaleDateString('it-IT', { timeZone: 'Europe/Rome' }) : '');
     res.locals.iso = (d) => (d instanceof Date ? d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Rome' }) : d || '');

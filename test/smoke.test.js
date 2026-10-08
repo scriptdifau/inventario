@@ -90,3 +90,30 @@ test('import CSV: antivirus, fatture, workspace', { skip }, async () => {
   await query(`UPDATE persona SET stato_workspace = NULL`);
   assert.strictEqual((await post('/importa/antivirus', { _csrf: t, csv: 'x\n' })).status, 400);
 });
+
+test('export Excel: ogni vista, anche filtrata', { skip }, async () => {
+  const zlib = require('node:zlib');
+  const righe = async (url) => {
+    const r = await req(url);
+    assert.strictEqual(r.status, 200, url);
+    assert.match(r.headers.get('content-type'), /spreadsheetml/);
+    assert.match(r.headers.get('content-disposition'), /attachment; filename=".*\.xlsx"/);
+    const buf = Buffer.from(await r.arrayBuffer());
+    assert.strictEqual(buf.subarray(0, 2).toString(), 'PK');
+    const fine = buf.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06])); let o = buf.readUInt32LE(fine + 16); let xml = '';
+    for (let i = 0; i < buf.readUInt16LE(fine + 10); i++) {
+      const lungN = buf.readUInt16LE(o + 28); const nome = buf.toString('utf8', o + 46, o + 46 + lungN); const loc = buf.readUInt32LE(o + 42);
+      if (nome === 'xl/worksheets/sheet1.xml') { const d = loc + 30 + buf.readUInt16LE(loc + 26) + buf.readUInt16LE(loc + 28);
+        xml = zlib.inflateRawSync(buf.subarray(d, d + buf.readUInt32LE(o + 20))).toString('utf8'); }
+      o += 46 + lungN + buf.readUInt16LE(o + 30) + buf.readUInt16LE(o + 32);
+    }
+    return (xml.match(/<row /g) || []).length - 1;       // meno l'intestazione
+  };
+  const tutti = await righe('/asset?xlsx=1');
+  const assegnati = await righe('/asset?stato=Assegnato&xlsx=1');
+  assert.ok(tutti > 50 && assegnati > 0 && assegnati < tutti, `${assegnati} < ${tutti}`);
+  const html = await (await req('/asset?stato=Assegnato')).text();
+  assert.match(html, /href="\/asset\?stato=Assegnato&amp;xlsx=1"/);          // il link conserva i filtri
+  for (const u of ['/persone', '/sim', '/movimenti', '/antivirus', '/cespiti', '/']) assert.ok(await righe(u + (u === '/' ? '?xlsx=1' : '?xlsx=1')) >= 0, u);
+  assert.strictEqual(await righe('/cespiti?xlsx=1'), 23);
+});

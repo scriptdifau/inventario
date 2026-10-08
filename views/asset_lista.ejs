@@ -1,5 +1,6 @@
 <%- include('_head', {titolo: 'Asset'}) %>
 <h1>Asset <a class="btn" href="/asset/nuovo" style="font-size:.9rem">+ Nuovo</a></h1>
+<p><a class="btn sec" href="<%= xlsUrl %>">⬇ Scarica Excel</a> <span style="color:var(--mut)">con i filtri attuali</span></p>
 <form class="filtri" method="get">
   <label>Cerca<input name="q" value="<%= filtri.q %>" placeholder="codice, persona, modello, serial…"></label>
   <%- include('_sel', {nome:'tipologia', label:'Tipologia', opzioni: tipologie.map(t=>({v:t,l:t})), valore: filtri.tipologia, vuoto:true}) %>

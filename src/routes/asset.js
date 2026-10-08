@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const { query, nul } = require('../db');
+const { inviaXlsx, num, vuota } = require('../export');
 
 async function lookup() {
   const [az, tip, st, pe, fo] = await Promise.all([
@@ -23,6 +24,17 @@ router.get('/', async (req, res, next) => {
     if (tipologia) { p.push(tipologia); where.push(`tipologia = $${p.length}`); }
     if (azienda) { p.push(azienda); where.push(`azienda = $${p.length}`); }
     const r = await query(`SELECT * FROM v_asset ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY id`, p);
+    if (vuota(req)) {
+      return inviaXlsx(res, 'asset', [{ nome: 'Asset', righe: r.rows, colonne: [
+        { h: 'ID', v: (x) => x.codice }, { h: 'Tipologia', v: (x) => x.tipologia }, { h: 'Stato', v: (x) => x.stato },
+        { h: 'Assegnato a', v: (x) => x.assegnato_a }, { h: 'Marca', v: (x) => x.marca }, { h: 'Modello', v: (x) => x.modello },
+        { h: 'RAM (GB)', v: (x) => x.ram_gb, t: 'num' }, { h: 'Storage (GB)', v: (x) => x.storage_gb, t: 'num' },
+        { h: 'Sistema operativo', v: (x) => x.sistema_operativo }, { h: 'Serial', v: (x) => x.serial }, { h: 'Hostname', v: (x) => x.hostname },
+        { h: 'Azienda', v: (x) => x.azienda }, { h: 'N. cespite', v: (x) => x.cespite, t: 'num' }, { h: 'Fornitore', v: (x) => x.fornitore },
+        { h: 'N. fattura', v: (x) => x.n_fattura }, { h: 'Data acquisto', v: (x) => x.data_acquisto, t: 'data' },
+        { h: 'Importo €', v: (x) => num(x.importo), t: 'euro' }, { h: 'Data dismissione', v: (x) => x.data_dismissione, t: 'data' },
+        { h: 'Note', v: (x) => x.note }] }]);
+    }
     res.render('asset_lista', { righe: r.rows, filtri: { q, stato, tipologia, azienda, uscita }, ...(await lookup()) });
   } catch (e) { next(e); }
 });

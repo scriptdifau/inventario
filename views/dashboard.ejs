@@ -1,5 +1,6 @@
 <%- include('_head', {titolo: 'Dashboard'}) %>
 <h1>Dashboard</h1>
+<p><a class="btn sec" href="<%= xlsUrl %>">⬇ Scarica Excel</a></p>
 <div class="card kpi">
   <% Object.entries(totali).forEach(([az, tot]) => { %><div><span style="color:var(--mut)"><%= az %> · importo</span><b><%= euro(tot) %></b></div><% }) %>
   <% av.forEach(r => { %><div><span style="color:var(--mut)">Antivirus <%= r.antivirus %></span><b class="<%= r.antivirus %>"><%= r.n %></b></div><% }) %>
