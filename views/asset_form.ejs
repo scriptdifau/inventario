@@ -18,7 +18,10 @@
   <label>Hostname<input name="hostname" value="<%= a.hostname ?? '' %>"></label>
   <label>N. cespite<input name="cespite_numero" value="<%= a.cespite_numero ?? '' %>" maxlength="30" pattern="[A-Za-z0-9][A-Za-z0-9._/\-]*" title="Lettere, cifre e . _ / - (senza spazi)" placeholder="es. 48 oppure A12" style="text-transform:uppercase"></label>
   <%- include('_sel', {nome:'fornitore_id', label:'Fornitore', opzioni: fornitori.map(x=>({v:x.id,l:x.nome})), valore: a.fornitore_id, vuoto:true}) %>
-  <%- include('_sel', {nome:'fattura_id', label:'Fattura (salva prima il fornitore per vederle)', opzioni: fatture.map(f=>({v:f.id,l:f.numero + (f.data ? ' · ' + data(f.data) : '')})), valore: a.fattura_id, vuoto:true}) %>
+  <label>…oppure nuovo fornitore<input name="fornitore_nuovo" value="<%= a.fornitore_nuovo ?? '' %>" placeholder="se non è in elenco"></label>
+  <%- include('_sel', {nome:'fattura_id', label:'Fattura già registrata', opzioni: fatture.map(f=>({v:f.id,l:f.numero + (f.data ? ' · ' + data(f.data) : '')})), valore: a.fattura_id, vuoto:true}) %>
+  <label>…oppure scrivi il numero di fattura<input name="fattura_numero" value="<%= a.fattura_numero ?? '' %>" maxlength="60" placeholder="es. 255/2026"><span class="s mut">Se la fattura c'è già (stesso fornitore e numero) viene collegata, altrimenti viene creata. Ha la precedenza sull'elenco.</span></label>
+  <label>Data della fattura<input type="date" name="fattura_data" value="<%= a.fattura_data ?? '' %>"></label>
   <label>Data acquisto<input type="date" name="data_acquisto" value="<%= iso(a.data_acquisto) %>"></label>
   <label>Importo €<input type="number" step="0.01" min="0" name="importo" value="<%= a.importo ?? '' %>"></label>
   <label>Data dismissione<input type="date" name="data_dismissione" value="<%= iso(a.data_dismissione) %>"></label>
