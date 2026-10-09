@@ -1,14 +1,15 @@
 <%- include('_head', {titolo: nuovo ? 'Nuovo asset' : 'Modifica ' + nomeAsset(a)}) %>
 <h1><%= nuovo ? 'Nuovo asset' : 'Modifica ' + nomeAsset(a) %></h1>
-<form method="post" class="card"><input type="hidden" name="_csrf" value="<%= csrf %>">
-<div class="form">
+<form method="post"><input type="hidden" name="_csrf" value="<%= csrf %>">
+<section class="card"><h2>Dati generali</h2><div class="form">
   <%- include('_sel', {nome:'tipologia', label:'Tipologia', opzioni: tipologie.map(t=>({v:t,l:t})), valore: a.tipologia, vuoto:false}) %>
   <label>Stato<select name="stato">
     <optgroup label="In contabilità"><% statiInfo.filter(x => !x.fuori).forEach(x => { %><option value="<%= x.nome %>" <%= x.nome === a.stato ? 'selected' : '' %>><%= x.nome %></option><% }) %></optgroup>
     <optgroup label="Dismesso: va nel Cestino"><% statiInfo.filter(x => x.fuori).forEach(x => { %><option value="<%= x.nome %>" <%= x.nome === a.stato ? 'selected' : '' %>><%= x.nome %></option><% }) %></optgroup>
   </select><span class="s mut">Dopo «Estinto» l'asset esce dalla contabilità e finisce nel Cestino, dove resta consultabile.</span></label>
   <%- include('_sel', {nome:'persona_id', label:'Assegnato a', opzioni: persone.map(p=>({v:p.id,l:p.nome + (p.stato !== 'Attivo' ? ' (' + p.stato + ')' : '')})), valore: a.persona_id, vuoto:true}) %>
-  <%- include('_sel', {nome:'azienda_id', label:'Azienda', opzioni: aziende.map(x=>({v:x.id,l:x.nome})), valore: a.azienda_id, vuoto:false}) %>
+</div></section>
+<section class="card"><h2>Dati tecnici</h2><div class="form">
   <label>Marca<input name="marca" value="<%= a.marca ?? '' %>"></label>
   <label>Modello<input name="modello" value="<%= a.modello ?? '' %>"></label>
   <label>RAM (GB)<input type="number" name="ram_gb" min="1" value="<%= a.ram_gb ?? '' %>"></label>
@@ -16,6 +17,9 @@
   <label>Sistema operativo<input name="sistema_operativo" value="<%= a.sistema_operativo ?? '' %>"></label>
   <label>Serial<input name="serial" value="<%= a.serial ?? '' %>"></label>
   <label>Hostname<input name="hostname" value="<%= a.hostname ?? '' %>"></label>
+</div></section>
+<section class="card"><h2>Dati contabili</h2><div class="form">
+  <%- include('_sel', {nome:'azienda_id', label:'Azienda', opzioni: aziende.map(x=>({v:x.id,l:x.nome})), valore: a.azienda_id, vuoto:false}) %>
   <label>N. cespite<input name="cespite_numero" value="<%= a.cespite_numero ?? '' %>" maxlength="30" pattern="[A-Za-z0-9][A-Za-z0-9._/\-]*" title="Lettere, cifre e . _ / - (senza spazi)" placeholder="es. 48 oppure A12" style="text-transform:uppercase"></label>
   <%- include('_sel', {nome:'fornitore_id', label:'Fornitore', opzioni: fornitori.map(x=>({v:x.id,l:x.nome})), valore: a.fornitore_id, vuoto:true}) %>
   <label>…oppure nuovo fornitore<input name="fornitore_nuovo" value="<%= a.fornitore_nuovo ?? '' %>" placeholder="se non è in elenco"></label>
@@ -25,8 +29,8 @@
   <label>Data acquisto<input type="date" name="data_acquisto" value="<%= iso(a.data_acquisto) %>"></label>
   <label>Importo €<input type="number" step="0.01" min="0" name="importo" value="<%= a.importo ?? '' %>"></label>
   <label>Data dismissione<input type="date" name="data_dismissione" value="<%= iso(a.data_dismissione) %>"></label>
-  <label class="w">Note<textarea name="note" rows="3"><%= a.note ?? '' %></textarea></label>
-</div>
+</div></section>
+<section class="card"><h2>Note</h2><div class="form"><label class="w"><textarea name="note" rows="3"><%= a.note ?? '' %></textarea></label></div></section>
 <p><button>Salva</button> <a class="btn sec" href="<%= nuovo ? '/asset' : '/asset/' + a.id %>">Annulla</a></p>
 </form>
 <%- include('_foot') %>

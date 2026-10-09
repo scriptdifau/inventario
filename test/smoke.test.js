@@ -291,7 +291,7 @@ test('numeri di fattura senza ".0": dati di partenza e import da CSV', { skip },
   const { query } = require('../src/db');
   // il database va caricato con l'import.sql aggiornato (o con migrazioni/003_numero_fattura.sql)
   assert.strictEqual((await query("SELECT count(*)::int n FROM fattura WHERE numero ~ '\\.0$'")).rows[0].n, 0);
-  assert.match((await (await req('/asset/1')).text()), /<b>4198<\/b>/);
+  assert.match((await (await req('/asset/1')).text()), /<b>4198( del [0-9\/]+)?<\/b>/);
 
   // un CSV con "4198.0" (come lo esporta Excel) ritrova la fattura 4198 esistente e non ne crea una doppia
   const f = (await query("SELECT f.numero, to_char(f.data, 'DD/MM/YYYY') AS data, fo.nome FROM fattura f JOIN fornitore fo ON fo.id = f.fornitore_id WHERE f.numero = '4198'")).rows[0];
@@ -574,4 +574,25 @@ test('numero di fattura scritto a mano nel form asset: crea o riusa la fattura, 
     await query(`DELETE FROM fattura WHERE numero LIKE 'ZZ%' OR (numero = '4198' AND fornitore_id IN (SELECT id FROM fornitore WHERE lower(nome) = 'zzfornitore'))`);
     await query(`DELETE FROM fornitore WHERE lower(nome) = 'zzfornitore'`);
   }
+});
+
+test('asset: scheda e form divisi in dati tecnici e dati contabili', { skip }, async () => {
+  const { query } = require('../src/db');
+  const a = (await query(`SELECT a.id, a.serial, c.numero FROM asset a JOIN cespite c ON c.id = a.cespite_id WHERE a.serial IS NOT NULL AND a.fattura_id IS NOT NULL LIMIT 1`)).rows[0];
+  const sezione = (html, titolo) => { const i = html.indexOf(`<h2>${titolo}</h2>`); return i < 0 ? '' : html.slice(i, html.indexOf('</section>', i)); };
+  const scheda = await (await req(`/asset/${a.id}`)).text();
+  const tec = sezione(scheda, 'Dati tecnici'); const con = sezione(scheda, 'Dati contabili');
+  assert.ok(tec && con, 'due sezioni nella scheda');
+  assert.ok(tec.includes(a.serial) && !tec.includes('Fornitore') && !tec.includes('Importo'), 'serial nel tecnico, niente di contabile');
+  assert.ok(con.includes(String(a.numero)) && con.includes('Fornitore') && con.includes('Fattura') && con.includes('Importo') && !con.includes('Serial'), 'cespite, fornitore, fattura, importo nel contabile');
+  assert.ok(scheda.indexOf('Dati tecnici') < scheda.indexOf('Dati contabili'));
+  const form = await (await req(`/asset/${a.id}/modifica`)).text();
+  const f = ['Dati generali', 'Dati tecnici', 'Dati contabili', 'Note'].map((t) => form.indexOf(`<h2>${t}</h2>`));
+  assert.ok(f.every((i) => i > 0) && f.every((i, k) => k === 0 || f[k - 1] < i), 'quattro sezioni del form, nell\'ordine');
+  const campi = (t) => [...sezione(form, t).matchAll(/name="([a-z_]+)"/g)].map((m) => m[1]);
+  assert.deepStrictEqual(campi('Dati generali'), ['tipologia', 'stato', 'persona_id']);
+  assert.deepStrictEqual(campi('Dati tecnici'), ['marca', 'modello', 'ram_gb', 'storage_gb', 'sistema_operativo', 'serial', 'hostname']);
+  assert.deepStrictEqual(campi('Dati contabili'), ['azienda_id', 'cespite_numero', 'fornitore_id', 'fornitore_nuovo', 'fattura_id', 'fattura_numero', 'fattura_data', 'data_acquisto', 'importo', 'data_dismissione']);
+  assert.deepStrictEqual(campi('Note'), ['note']);
+  assert.match(await (await req('/asset/nuovo')).text(), /<h2>Dati contabili<\/h2>/);
 });
