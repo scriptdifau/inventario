@@ -15,14 +15,15 @@
 </div>
 
 <div class="grid g2">
-  <section class="card"><h2>Dispositivo</h2><div class="fatti">
+  <section class="card"><h2>Dati tecnici</h2><div class="fatti">
     <% if (av) { %><div><span>Antivirus</span><b><%- include('_av', {stato: av.antivirus, visto: av.ultimo_rilevato}) %> <%= av.antivirus === 'OK' ? 'Attivo' : av.antivirus === 'Da verificare' ? 'Da verificare' : 'Non presente nel report' %><%= av.ultimo_rilevato ? ' · visto il ' + data(av.ultimo_rilevato) : '' %></b></div><% } %>
-    <% [['Sistema operativo', a.sistema_operativo], ['RAM', a.ram_gb ? a.ram_gb + ' GB' : ''], ['Storage', a.storage_gb ? a.storage_gb + ' GB' : ''], ['Serial', a.serial], ['Hostname', a.hostname]].forEach(([k, v]) => { if (v) { %>
+    <% [['Tipologia', a.tipologia], ['Marca', a.marca], ['Modello', a.modello], ['Sistema operativo', a.sistema_operativo], ['RAM', a.ram_gb ? a.ram_gb + ' GB' : ''], ['Storage', a.storage_gb ? a.storage_gb + ' GB' : ''], ['Serial', a.serial], ['Hostname', a.hostname]].forEach(([k, v]) => { if (v) { %>
       <div><span><%= k %></span><b><%= v %></b></div><% } }) %>
   </div></section>
-  <section class="card"><h2>Acquisto</h2><div class="fatti">
-    <% [['Fornitore', a.fornitore], ['Fattura', a.n_fattura], ['Data acquisto', data(a.data_acquisto)], ['Importo', euro(a.importo)], ['Dismesso il', data(a.data_dismissione)]].forEach(([k, v]) => { if (v) { %>
+  <section class="card"><h2>Dati contabili</h2><div class="fatti">
+    <% [['Azienda', a.azienda], ['N. cespite', a.cespite], ['Fornitore', a.fornitore], ['Fattura', a.n_fattura ? a.n_fattura + (a.data_fattura ? ' del ' + data(a.data_fattura) : '') : ''], ['Data acquisto', data(a.data_acquisto)], ['Importo', euro(a.importo)], ['Dismesso il', data(a.data_dismissione)]].forEach(([k, v]) => { if (v) { %>
       <div><span><%= k %></span><b><%= v %></b></div><% } }) %>
+    <% if (a.eta !== null && a.eta !== undefined) { %><div><span>Età</span><b><%- include('_eta', {eta: a.eta, tipologia: a.tipologia, dataAcq: a.data_acquisto}) %></b></div><% } %>
   </div></section>
 </div>
 <% if (a.note) { %><section class="card"><h2>Note</h2><div style="white-space:pre-wrap"><%= a.note %></div></section><% } %>

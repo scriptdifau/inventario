@@ -158,7 +158,8 @@ async function rerender(e, req, res, next, nuovo) {
 
 router.get('/:id(\\d+)', async (req, res, next) => {
   try {
-    const a = await query('SELECT * FROM v_asset WHERE id = $1', [req.params.id]);
+    const a = await query(`SELECT v.*, f.data AS data_fattura, ${sqlEta('v.data_acquisto')} AS eta FROM v_asset v
+      LEFT JOIN asset x ON x.id = v.id LEFT JOIN fattura f ON f.id = x.fattura_id WHERE v.id = $1`, [req.params.id]);
     if (!a.rows[0]) return next();
     const [mov, sim, avs] = await Promise.all([
       query(`SELECT m.*, d.nome || ' ' || d.cognome AS da, t.nome || ' ' || t.cognome AS a FROM movimento m
