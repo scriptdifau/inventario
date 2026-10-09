@@ -529,3 +529,49 @@ test('cespite alfanumerico: salvataggio normalizzato, formato controllato, ordin
     await query(`DELETE FROM cespite WHERE numero LIKE 'ZZ%'`);
   }
 });
+
+test('numero di fattura scritto a mano nel form asset: crea o riusa la fattura, fornitore nuovo, errori chiari', { skip }, async () => {
+  const { query } = require('../src/db');
+  const az = (await query('SELECT id FROM azienda ORDER BY id LIMIT 1')).rows[0].id;
+  const forn = (await query(`SELECT id FROM fornitore WHERE lower(nome) = 'effesistemi'`)).rows[0].id;
+  const creati = [];
+  const crea = async (extra, modello) => {
+    const t = await csrf('/asset/nuovo');
+    const r = await post('/asset/nuovo', { _csrf: t, tipologia: 'PC', stato: 'Disponibile', azienda_id: az, modello, ...extra });
+    if (r.status === 302) creati.push(Number(r.headers.get('location').split('/').pop()));
+    return r;
+  };
+  const dati = async (id) => (await query(`SELECT a.fornitore_id, f.id AS fid, f.numero, f.data, f.fornitore_id AS ffid FROM asset a LEFT JOIN fattura f ON f.id = a.fattura_id WHERE a.id = $1`, [id])).rows[0];
+  try {
+    // fornitore dall'elenco + numero e data scritti a mano -> fattura creata
+    assert.strictEqual((await crea({ fornitore_id: forn, fattura_numero: ' ZZ-77/2026 ', fattura_data: '2026-10-01' }, 'ZzF1')).status, 302);
+    let d = await dati(creati[0]); assert.strictEqual(d.numero, 'ZZ-77/2026'); assert.match(String(d.data), /2026/); assert.strictEqual(d.ffid, forn);
+    // stesso numero e stessa data su un altro asset -> riusa la stessa fattura; senza data -> riusa l'unica con quel numero
+    await crea({ fornitore_id: forn, fattura_numero: 'ZZ-77/2026', fattura_data: '01/10/2026' }, 'ZzF2');
+    await crea({ fornitore_id: forn, fattura_numero: 'ZZ-77/2026' }, 'ZzF3');
+    assert.deepStrictEqual([(await dati(creati[1])).fid, (await dati(creati[2])).fid], [d.fid, d.fid]);
+    assert.strictEqual((await query(`SELECT count(*)::int n FROM fattura WHERE numero = 'ZZ-77/2026'`)).rows[0].n, 1);
+    // numero "4198.0" (come arriva da Excel) -> "4198"; fornitore nuovo scritto a mano, creato
+    assert.strictEqual((await crea({ fornitore_nuovo: 'ZzFornitore', fattura_numero: 'ZZ4198.0' }, 'ZzF4')).status, 302);
+    d = await dati(creati[3]); assert.strictEqual(d.numero, 'ZZ4198.0'); // non è un numero puro: resta com'è
+    assert.strictEqual((await crea({ fornitore_nuovo: 'zzfornitore', fattura_numero: '4198.0' }, 'ZzF5')).status, 302);
+    assert.strictEqual((await dati(creati[4])).numero, '4198');
+    assert.strictEqual((await query(`SELECT count(*)::int n FROM fornitore WHERE lower(nome) = 'zzfornitore'`)).rows[0].n, 1, 'fornitore riusato, non duplicato');
+    assert.strictEqual((await dati(creati[4])).ffid, (await dati(creati[3])).ffid);
+    // senza fornitore: messaggio chiaro, niente salvato
+    let r = await crea({ fattura_numero: 'ZZ-1' }, 'ZzFNo'); assert.strictEqual(r.status, 400); assert.match(await r.text(), /scegli il fornitore/);
+    r = await crea({ fornitore_id: forn, fattura_numero: 'ZZ-2', fattura_data: 'boh' }, 'ZzFData'); assert.strictEqual(r.status, 400); assert.match(await r.text(), /Data della fattura non riconosciuta/);
+    assert.strictEqual((await query(`SELECT count(*)::int n FROM asset WHERE modello IN ('ZzFNo', 'ZzFData')`)).rows[0].n, 0);
+    // modifica: il numero manuale cambia la fattura dell'asset; la scheda la mostra
+    const t = await csrf(`/asset/${creati[0]}/modifica`);
+    r = await post(`/asset/${creati[0]}/modifica`, { _csrf: t, tipologia: 'PC', stato: 'Disponibile', azienda_id: az, fornitore_id: forn, fattura_numero: 'ZZ-88', fattura_data: '2026-10-02' });
+    assert.strictEqual(r.status, 302); assert.strictEqual((await dati(creati[0])).numero, 'ZZ-88');
+    assert.match(await (await req(`/asset/${creati[0]}`)).text(), /ZZ-88/);
+    const form = await (await req(`/asset/${creati[0]}/modifica`)).text(); assert.match(form, /name="fattura_numero"/); assert.match(form, /name="fornitore_nuovo"/);
+  } finally {
+    await query('DELETE FROM movimento WHERE asset_id = ANY($1)', [creati]);
+    await query('DELETE FROM asset WHERE id = ANY($1)', [creati]);
+    await query(`DELETE FROM fattura WHERE numero LIKE 'ZZ%' OR (numero = '4198' AND fornitore_id IN (SELECT id FROM fornitore WHERE lower(nome) = 'zzfornitore'))`);
+    await query(`DELETE FROM fornitore WHERE lower(nome) = 'zzfornitore'`);
+  }
+});

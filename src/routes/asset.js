@@ -3,6 +3,7 @@ const { query, nul, pool } = require('../db');
 const { inviaXlsx, num, vuota } = require('../export');
 const { ordine, t, tn, cespiteOrd, cespiteNumero } = require('../ordina');
 const { sqlEta, soglia } = require('../eta');
+const { numeroDocumento, parseData } = require('../csv');
 
 const ORD_ASSET = {
   dispositivo: { etichetta: 'Dispositivo', col: [t('marca'), t('modello')] },
@@ -92,20 +93,43 @@ async function fatture(fornitoreId) {
   return (await query('SELECT id, numero, data FROM fattura WHERE fornitore_id = $1 ORDER BY data DESC NULLS LAST, numero', [fornitoreId])).rows;
 }
 
+// errore di validazione mostrato nel form (stessa via dei vincoli del database)
+function errore(msg) { const e = new Error(msg); e.code = '23514'; e.messaggio = msg; return e; }
+
 async function salva(req, id) {
   const v = CAMPI.map((c) => nul(req.body[c]));
   // cespite: (azienda, numero) -> riga cespite
   let cespiteId = null;
   const cn = cespiteNumero(req.body.cespite_numero);
-  if (cn.errore) { const e = new Error(cn.errore); e.code = '23514'; e.constraint = 'cespite_numero_formato'; e.messaggio = cn.errore; throw e; }
+  if (cn.errore) throw errore(cn.errore);
   const num = cn.numero;
   if (num && nul(req.body.azienda_id)) {
     const c = await query(`INSERT INTO cespite (azienda_id, numero) VALUES ($1, $2)
       ON CONFLICT (azienda_id, numero) DO UPDATE SET numero = EXCLUDED.numero RETURNING id`, [req.body.azienda_id, num]);
     cespiteId = c.rows[0].id;
   }
-  // fattura: solo se coerente col fornitore (la FK composta lo impone comunque)
-  const fatturaId = nul(req.body.fattura_id);
+  // fornitore: scelto dall'elenco oppure scritto a mano (creato se non esiste)
+  let fid = nul(req.body.fornitore_id);
+  const nuovoForn = nul(req.body.fornitore_nuovo);
+  if (!fid && nuovoForn) {
+    const ex = await query('SELECT id FROM fornitore WHERE lower(nome) = lower($1)', [nuovoForn]);
+    fid = ex.rows[0] ? ex.rows[0].id : (await query('INSERT INTO fornitore (nome) VALUES ($1) RETURNING id', [nuovoForn])).rows[0].id;
+    v[CAMPI.indexOf('fornitore_id')] = fid;
+  }
+  // fattura: scelta dall'elenco, oppure numero (e data) scritti a mano -> si usa quella già registrata o la si crea.
+  // Serve il fornitore (la FK composta fornitore/fattura lo impone comunque).
+  let fatturaId = nul(req.body.fattura_id);
+  const numFatt = numeroDocumento(nul(req.body.fattura_numero) || '');
+  if (numFatt) {
+    if (!fid) throw errore('Per indicare il numero di fattura scegli il fornitore (o scrivine uno nuovo).');
+    const dTxt = nul(req.body.fattura_data);
+    const dFatt = dTxt ? (/^\d{4}-\d{2}-\d{2}$/.test(dTxt) ? dTxt : ((parseData(dTxt, 'dmy') || '').slice(0, 10) || null)) : null;
+    if (dTxt && !dFatt) throw errore(`Data della fattura non riconosciuta (${dTxt}).`);
+    let f = (await query('SELECT id FROM fattura WHERE fornitore_id = $1 AND numero = $2 AND data IS NOT DISTINCT FROM $3::date', [fid, numFatt, dFatt])).rows[0];
+    if (!f && !dFatt) { const uniche = (await query('SELECT id FROM fattura WHERE fornitore_id = $1 AND numero = $2', [fid, numFatt])).rows; if (uniche.length === 1) f = uniche[0]; }
+    if (!f) f = (await query('INSERT INTO fattura (fornitore_id, numero, data) VALUES ($1, $2, $3) RETURNING id', [fid, numFatt, dFatt])).rows[0];
+    fatturaId = f.id;
+  }
   const cols = [...CAMPI, 'cespite_id', 'fattura_id'];
   const vals = [...v, cespiteId, fatturaId];
   if (id) {
